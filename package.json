@@ -1,0 +1,19 @@
+{
+  "name": "cross",
+  "version": "1.0.0",
+  "description": "crossword",
+  "main": "app.js",
+  "scripts": {
+    "test": "test.mjs"
+  },
+  "keywords": [
+    "crossword"
+  ],
+  "author": "Fani Akritidou",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "node-fetch": "^2.6.1"
+  }
+}
