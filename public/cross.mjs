@@ -1,7 +1,8 @@
+// REF https://v8.dev/features/modules
 class Variable {
-    
-    static ACROSS = "across";
-    static DOWN = "down";
+
+    static ACROSS = 'across';
+    static DOWN = 'down';
     
     static isSameCell(cell1, cell2) {
         // console.log(cell1, cell2)
@@ -183,12 +184,4 @@ class Crossword {
 }
 
 
-// const files = ['api/grids/0', 'api/words/']
-// Promise.all(files.map(file => fetch(file)))
-//     .then( responses => Promise.all( responses.map( response => response.json() ) ) )
-//     .then(([structure, words]) => new Crossword(structure, words, 15, 15))                    
-//     .catch((err) => {
-//     console.log(err) // @ TODO handle the error
-// });
-
-export {Crossword}
+export {Crossword, Variable}

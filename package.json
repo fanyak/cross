@@ -4,7 +4,8 @@
   "description": "crossword",
   "main": "app.js",
   "scripts": {
-    "test": "test.mjs"
+    "start": "node app.js",
+    "test": "node ./src/test/test.mjs"
   },
   "keywords": [
     "crossword"
@@ -15,5 +16,9 @@
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "node-fetch": "^2.6.1"
+  },
+  "devDependencies": {
+    "babel-eslint": "^10.1.0",
+    "eslint": "^7.22.0"
   }
 }
