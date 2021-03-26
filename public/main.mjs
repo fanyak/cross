@@ -1,4 +1,5 @@
 import { Crossword, Variable } from './cross.mjs';
+import { not, isBlackCell, getCellNumber } from './helper.mjs';
 
 const crosswordDimentions = [15,15];
 const files = ['api/grids/1', 'api/words/'];
@@ -9,13 +10,14 @@ const padding = 3;
 const LetterFontSize = 22;
 const indexSize = 11;
 const letterPaddingLeft = cellSize*0.25; 
-const letterPaddingTop = cellSize*0.8;
+const letterPaddingTop = cellSize*0.85;
 const wordIndexPaddingLeft = padding/1.5; 
 const wordIndexPaddingTop = padding*3.5;
 
 
 
-const direction = 'down';
+let direction = 'across';
+const startOfWordCells = []; // this is in the order of the number indices
 
 const svgNamespace = 'http://www.w3.org/2000/svg';
 
@@ -89,6 +91,7 @@ function makeCells(crossword) {
         const row = crossword.structure[i];
 
         for (let j= 0; j<crossword.width; j++) {
+
             const cellGroup = document.createElementNS(svgNamespace, 'g');
 
             const wordIndex = document.createElementNS(svgNamespace, 'text');
@@ -97,22 +100,27 @@ function makeCells(crossword) {
             wordIndex.setAttributeNS(null, 'stroke', 'black');
             wordIndex.setAttributeNS(null, 'stroke-width', '0.2'); 
             wordIndex.style.fontSize = indexSize;
+            wordIndex.style.pointerEvents = 'none'; // disable interacting with this svg element
+
 
             const letter = document.createElementNS(svgNamespace, 'text');
             letter.setAttributeNS(null, 'x', (j*cellSize)+padding + letterPaddingLeft);
             letter.setAttributeNS(null, 'y', (i*cellSize)+padding + letterPaddingTop);
             letter.setAttributeNS(null,'stroke', 'black');
             letter.setAttributeNS(null, 'stroke-width', '0.3'); 
-            letter.setAttributeNS(null, 'id', `letter-id-${i*crossword.width + j}`);
+            letter.setAttributeNS(null, 'id', `letter-id-${i*crossword.width + j}`);        
             letter.style.fontSize = LetterFontSize;
+            letter.style.pointerEvents = 'none'; // disable interacting with this svg element
 
             const cell = document.createElementNS(svgNamespace, 'rect');  
-            
+            cell.setAttributeNS(null, 'id', `cell-id-${i*crossword.width + j}`);
+
             if( !row[j] ) { 
                 rectWidth = cellSize, rectHeight=rectWidth;          
                 cell.setAttributeNS(null, 'x', (j*cellSize)+padding);
                 cell.setAttributeNS(null, 'y', (i*cellSize)+padding);
                 cell.setAttributeNS(null, 'fill','#333');
+                cell.classList.add('black');
             } else {
                 cell.setAttributeNS(null, 'id', `cell-id-${i*crossword.width + j}`);
                 const selectedVariables = variables.filter(v => v.cells.find( cell => Variable.isSameCell(cell, [i,j]) ) );
@@ -129,6 +137,7 @@ function makeCells(crossword) {
                 const isStartOfWord = variables.find(v => v.i == i && v.j == j);
                 if(isStartOfWord) {          
                     wordIndex.textContent = counter;
+                    startOfWordCells.push({cell, direction: isStartOfWord.direction});
                     counter++;
                 }
             }  
@@ -136,7 +145,7 @@ function makeCells(crossword) {
             cell.setAttributeNS(null, 'height', rectHeight);
             cell.setAttributeNS(null, 'stroke', 'none');                   
             
-            cellGroup.appendChild(cell);
+            cellGroup.appendChild(cell); // the most deeply nested element will catch the events in the capturing phase
             cellGroup.appendChild(wordIndex);
             cellGroup.appendChild(letter);
 
@@ -150,42 +159,119 @@ function makeCells(crossword) {
 }
 
 function addActions(crossword) {
-   // @TODO add mobile integration
+    // closure
     let selected;
+    // const variables = Array.from(crossword.variables);
 
-    function listentTokey(evt) {        
-       evt.target.addEventListener('keydown', typeIn, true) ;
+
+       // @TODO add mobile integration
+
+    function listenTokey(evt) {        
+       evt.target.addEventListener('keydown', keydown, true) ;
     }
-    function typeIn(evt) {        
-        console.log(11111, evt.key);
-        if(/^[A-Za-z]{1}$/.test(evt.key) && selected){
-            const cellId = evt.target.id;
+
+    function keydown(evt) {  
+        evt.preventDefault();
+      
+        const cellId = evt.target.id;
+        const variables = Array.from(crossword.variables);
+    
+        if(/^[A-Za-z]{1}$/.test(evt.key)){
             const letterId = cellId.replace('cell', 'letter');
-            console.log(cellId);
             const text = document.querySelector(`#${letterId}`);
             text.textContent = evt.key.toUpperCase();
-        }        
+        }           
+        if(evt.key == 'ArrowDown') {
+            const nextId = parseInt(cellId.split('-')[2]) + crossword.width;
+            const next = document.getElementById(`cell-id-${nextId}`);
+            if(next) {
+                next.dispatchEvent(new Event('click'));
+            }
+        }
+        if(evt.key == 'ArrowUp') {
+            const nextId = parseInt(cellId.split('-')[2]) - crossword.width;
+            const next = document.getElementById(`cell-id-${nextId}`);
+            if(next) {
+                next.dispatchEvent(new Event('click'));
+            }
+        }
+        if(evt.key == 'ArrowLeft') {
+            const nextId = parseInt(cellId.split('-')[2]) - 1;
+            const next = document.getElementById(`cell-id-${nextId}`);
+            if(next) {
+                next.dispatchEvent(new Event('click'));
+            }
+        }
+        if(evt.key == 'ArrowRight') {
+            const nextId = parseInt(cellId.split('-')[2]) + 1;
+            const next = document.getElementById(`cell-id-${nextId}`);
+            if(next) {
+                next.dispatchEvent(new Event('click'));
+            }
+        }
+
+        if(evt.key == 'ArrowRight') {
+            const nextId = parseInt(cellId.split('-')[2])  + 1;
+            const next = document.getElementById(`cell-id-${nextId}`);
+            if(next) {
+                next.dispatchEvent(new Event('click'));
+            }
+        }
+        if(evt.key == 'Tab') {
+            let next;
+            const currentNumber = getCellNumber(evt.target);
+            if(evt.shiftKey) {
+                next = [...startOfWordCells].reverse().find(({cell}) => getCellNumber(cell) < currentNumber);
+             } else {
+                next = startOfWordCells.find(({cell}) => getCellNumber(cell) > currentNumber);
+            } 
+            console.log(next);            
+            if(next) {                
+                direction = next.direction;
+                next.cell.dispatchEvent(new Event('click'));
+            }      
+        }
+
+        if(evt.key == 'Delete' || evt.key == 'Backspace') {
+            const letterId = cellId.replace('cell', 'letter');
+            const text = document.querySelector(`#${letterId}`);
+            text.textContent = "";
+        }
+
+            
     }
 
+  
+
     svg.addEventListener('click', (evt) => {
-        if(selected){
-            selected.blur();
-            selected.removeEventListener('focus',listentTokey, false);
-            selected.removeEventListener('keydown',typeIn, false);
-        }
-        selected = document.getElementById(evt.target.id);
-        selected.addEventListener('focus',listentTokey, false);
-        selected.focus();
+        evt.preventDefault();
+        const el = document.getElementById(evt.target.id);
 
-        const variable = selected.getAttribute(`data-variable-${direction}`);
+        if(el && el.id.includes('cell') && not(isBlackCell)(el)) {
 
-        const all = [...document.querySelectorAll('[id*="cell-id"]')];
-        const refs = [...document.querySelectorAll(`[data-variable-${direction}="${variable}"]`)];
-        all.forEach(cell => { cell.setAttributeNS(null, 'fill', '#fff'); } );
-        refs.forEach(ref => { ref.setAttributeNS(null, 'fill', 'lightblue'); } );
-        selected.setAttributeNS(null, 'fill', 'yellow');
+            // if a selected already exists, then remove the selection
+            if(selected) {
+                selected.blur();
+                selected.removeEventListener('focus',listenTokey, false);
+                selected.removeEventListener('keydown',keydown, true);
+            }
+            //set new selected value
+            selected = el;
+            selected.addEventListener('focus',listenTokey, false);
 
-    }, true); 
+            const variable = selected.getAttribute(`data-variable-${direction}`);
+
+            const all = [...document.querySelectorAll('[id*="cell-id"]')].filter(not(isBlackCell));
+            const refs = [...document.querySelectorAll(`[data-variable-${direction}="${variable}"]`)];
+            all.forEach(cell => { cell.setAttributeNS(null, 'fill', '#fff'); } );
+            refs.forEach(ref => { ref.setAttributeNS(null, 'fill', 'lightblue'); } );
+            selected.setAttributeNS(null, 'fill', 'yellow');
+
+            selected.focus();
+        }        
+
+    }, true);  // allow click event on cell to bubble upwards to the svg 
+             // clicks will be captured by the svg before the cells underneath it
 
     
 }
