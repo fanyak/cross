@@ -8,27 +8,30 @@
 
 <body>
     <main>
-        <svg viewBox="0 0 501 501" xmlns="http://www.w3.org/2000/svg" role="table"></svg>
-        
+        <article aria-label="puzzle game">
+                <section aria-label = "puzzle grid">
+                    <svg viewBox="0 0 501 501" xmlns="http://www.w3.org/2000/svg" role="grid" aria-labelledby="id-grid-layout">
+                        <title id="id-grid-layout">Puzzle Grid</title>
+                    </svg>
+                <section></section>
+        </article>
     </main>
-    <!--<svg viewBox="0 0 501 501" xmlns="http://www.w3.org/2000/svg">
-
-         
-            <g data-group="grid">
-                <path d="M3.00,36.00 l495.00,0.00 M3.00,69.00 l495.00,0.00 M3.00,102.00 l495.00,0.00 M3.00,135.00 l495.00,0.00 M3.00,168.00 l495.00,
-                0.00 M3.00,201.00 l495.00,0.00 M3.00,234.00 l495.00,0.00 M3.00,267.00 l495.00,0.00 M3.00,300.00 l495.00,0.00 M3.00,333.00 l495.00,
-                0.00 M3.00,366.00 l495.00,0.00 M3.00,399.00 l495.00,0.00 M3.00,432.00 l495.00,0.00 M3.00,465.00 l495.00,0.00 M36.00,3.00 l0.00,
-                495.00 M69.00,3.00 l0.00,495.00 M102.00,3.00 l0.00,495.00 M135.00,3.00 l0.00,495.00 M168.00,3.00 l0.00,495.00 M201.00,3.00 l0.00,
-                495.00 M234.00,3.00 l0.00,495.00 M267.00,3.00 l0.00,495.00 M300.00,3.00 l0.00,495.00 M333.00,3.00 l0.00,495.00 M366.00,3.00 l0.00,
-                495.00 M399.00,3.00 l0.00,495.00 M432.00,3.00 l0.00,495.00 M465.00,3.00 l0.00,495.00" 
-                stroke="dimgray" vector-effect="non-scaling-stroke"></path>
-               <rect x="1.50" y="1.50" width="498.00" height="498.00" stroke="black" stroke-width="3.00" fill="none"></rect>
-            </g>
-        </svg> -->
-
-
-
 
   
     <script src="main.mjs" type="module"></script>
+
+    <script>
+        function sendfocus(evt) {
+            evt.preventDefault();
+            if(evt.key == 'Tab' && document.activeElement == document.querySelector('body')){
+                document.removeEventListener('keydown', sendfocus, true);
+                const cell = document.querySelector('#cell-id-0');
+                cell.dispatchEvent(new Event('click'));
+            }
+        }
+
+        window.addEventListener('load', (evt) => {
+           document.addEventListener('keydown', sendfocus, true);
+        });
+    </script>
 </body>

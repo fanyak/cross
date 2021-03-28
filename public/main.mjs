@@ -1,5 +1,5 @@
 import { Crossword, Variable } from './cross.mjs';
-import { not, isBlackCell, getCellNumber } from './helper.mjs';
+import { not, isBlackCell, getCellNumber, isHiddenNode, isLetterEnglish, fillBlue, fillWhite, fillYellow, getCellVariable, getCellCoords } from './helper.mjs';
 
 const crosswordDimentions = [15,15];
 const files = ['api/grids/1', 'api/words/'];
@@ -84,7 +84,8 @@ function makeCells(crossword) {
     let counter = 1;
 
     const rowGroup = document.createElementNS(svgNamespace, 'g');
-    rowGroup.setAttribute('data-group', 'cells');
+    rowGroup.setAttributeNS(null, 'data-group', 'cells');
+    rowGroup.setAttributeNS(null, 'role', 'rowgroup');
     //console.log(variables);
      for (let i = 0; i< crossword.height; i++) {
 
@@ -93,6 +94,7 @@ function makeCells(crossword) {
         for (let j= 0; j<crossword.width; j++) {
 
             const cellGroup = document.createElementNS(svgNamespace, 'g');
+            cellGroup.setAttributeNS(null, 'role', 'row');
 
             const wordIndex = document.createElementNS(svgNamespace, 'text');
             wordIndex.setAttributeNS(null, 'x', (j*cellSize)+padding + wordIndexPaddingLeft);
@@ -112,6 +114,12 @@ function makeCells(crossword) {
             letter.style.fontSize = LetterFontSize;
             letter.style.pointerEvents = 'none'; // disable interacting with this svg element
 
+            // Help for Aria 
+            const ariaLetter = document.createElementNS(svgNamespace, 'text');
+            ariaLetter.setAttributeNS(null, 'aria-live', 'polite');
+            ariaLetter.classList.add('hidden');
+            letter.appendChild(ariaLetter);
+
             const cell = document.createElementNS(svgNamespace, 'rect');  
             cell.setAttributeNS(null, 'id', `cell-id-${i*crossword.width + j}`);
 
@@ -126,10 +134,7 @@ function makeCells(crossword) {
                 const selectedVariables = variables.filter(v => v.cells.find( cell => Variable.isSameCell(cell, [i,j]) ) );
                 for(let selectedVariable of selectedVariables) {
                     cell.setAttributeNS(null, `data-variable-${selectedVariable.direction}`, `${selectedVariable.i}-${selectedVariable.j}`);
-                    cell.setAttributeNS(null, 'tabIndex', i*crossword.width + j);
-
                 }
-
                 rectWidth = cellSize-2, rectHeight=rectWidth; // account for stroke width of the grid
                 cell.setAttributeNS(null, 'x', (j*cellSize)+padding + 1); // account for stroke width of the grid
                 cell.setAttributeNS(null, 'y', (i*cellSize)+padding + 1);          
@@ -143,7 +148,10 @@ function makeCells(crossword) {
             }  
             cell.setAttributeNS(null, 'width', rectWidth);
             cell.setAttributeNS(null, 'height', rectHeight);
-            cell.setAttributeNS(null, 'stroke', 'none');                   
+            cell.setAttributeNS(null, 'stroke', 'none'); 
+
+            // ARIA LABELS
+            cell.setAttributeNS(null, 'role', 'gridcell');
             
             cellGroup.appendChild(cell); // the most deeply nested element will catch the events in the capturing phase
             cellGroup.appendChild(wordIndex);
@@ -159,89 +167,133 @@ function makeCells(crossword) {
 }
 
 function addActions(crossword) {
-    // closure
+    // CLOSURE
     let selected;
-    // const variables = Array.from(crossword.variables);
-
-
-       // @TODO add mobile integration
-
-    function listenTokey(evt) {        
-       evt.target.addEventListener('keydown', keydown, true) ;
-    }
+    // this is static once the crossword is complete, don't recalculate it every time - use it from the closure
+    const cells = [...document.querySelectorAll('svg [id*="cell-id"]')]; 
+    const activeCells = cells.filter(not(isBlackCell));
+    const variables = Array.from(crossword.variables);
+   // const startOfWordCellsReversed = [...startOfWordCells].reverse();  
+   
 
     function keydown(evt) {  
         evt.preventDefault();
       
         const cellId = evt.target.id;
-        const variables = Array.from(crossword.variables);
-    
-        if(/^[A-Za-z]{1}$/.test(evt.key)){
+        const cellNumber = getCellNumber(evt.target);
+
+        // edit cell content
+        const char = isLetterEnglish(evt.key);
+
+        if(char || ['Delete','Backspace'].includes(evt.key)) {
+
             const letterId = cellId.replace('cell', 'letter');
             const text = document.querySelector(`#${letterId}`);
-            text.textContent = evt.key.toUpperCase();
-        }           
-        if(evt.key == 'ArrowDown') {
-            const nextId = parseInt(cellId.split('-')[2]) + crossword.width;
-            const next = document.getElementById(`cell-id-${nextId}`);
-            if(next) {
-                next.dispatchEvent(new Event('click'));
+            const hiddenText = document.querySelector(`#${letterId} .hidden`);
+
+            let content = [...text.childNodes].find(not(isHiddenNode));
+            if (content) {
+                text.removeChild(content);
             }
+
+            if(char) {
+                const letter = evt.key.toUpperCase();
+                content = document.createTextNode(letter);
+                text.appendChild(content);
+                hiddenText.textContent = letter; 
+
+                if(direction == 'across'){
+                    moveToCell(cellNumber, 1);
+                } else {
+                    moveToCell(cellNumber, 15);
+                }
+
+            } else {
+                if(content) {
+                    hiddenText.textContent = ''; 
+                }
+                if(evt.key == 'Backspace') { 
+                    let next;
+                    if(direction == 'across'){
+                       next = moveToCell(cellNumber, -1);
+                    } else {
+                        next = moveToCell(cellNumber, -15);
+                    }
+                    if(next) {
+                        if(!content) { // if the cell where we clicked backspace was empty, delete the previous cell contents
+                            const nextCellId = next.id;
+                            const nextCellNumber = getCellNumber(next);
+                            const nextTetterId = nextCellId.replace('cell', 'letter');
+                            const text = document.querySelector(`#${nextTetterId}`);
+                            const hiddenText = document.querySelector(`#${nextTetterId} .hidden`);
+
+                            let nextContent = [...text.childNodes].find(not(isHiddenNode));
+                            if (nextContent) {
+                                text.removeChild(nextContent);
+                                hiddenText.textContent = ''; 
+                            }
+
+                            // edit cell content
+                        }
+                    }
+                }
+
+            }
+
+            
+            
+        }  
+        
+        // navigate actions 
+
+        if(evt.key == 'ArrowDown') {
+            // const nextId = cellNumber + crossword.width;
+            moveToCell(cellNumber, crossword.width);
+            return;
         }
         if(evt.key == 'ArrowUp') {
-            const nextId = parseInt(cellId.split('-')[2]) - crossword.width;
-            const next = document.getElementById(`cell-id-${nextId}`);
-            if(next) {
-                next.dispatchEvent(new Event('click'));
-            }
+            // const nextId = cellNumber -crossword.width;
+            moveToCell(cellNumber, -crossword.width);
+            return;
         }
         if(evt.key == 'ArrowLeft') {
-            const nextId = parseInt(cellId.split('-')[2]) - 1;
-            const next = document.getElementById(`cell-id-${nextId}`);
-            if(next) {
-                next.dispatchEvent(new Event('click'));
-            }
+            //const nextId = cellNumber - 1;
+            moveToCell(cellNumber, -1);
+            return;
         }
         if(evt.key == 'ArrowRight') {
-            const nextId = parseInt(cellId.split('-')[2]) + 1;
-            const next = document.getElementById(`cell-id-${nextId}`);
-            if(next) {
-                next.dispatchEvent(new Event('click'));
-            }
+            // const nextId = cellNumber + 1;
+            moveToCell(cellNumber, 1);
+            return;
         }
 
-        if(evt.key == 'ArrowRight') {
-            const nextId = parseInt(cellId.split('-')[2])  + 1;
-            const next = document.getElementById(`cell-id-${nextId}`);
-            if(next) {
-                next.dispatchEvent(new Event('click'));
-            }
-        }
         if(evt.key == 'Tab') {
             let next;
-            const currentNumber = getCellNumber(evt.target);
+            const currentIndex = startOfWordCells.findIndex(({cell}) => getCellVariable(cell, direction) == getCellVariable(evt.target, direction));
             if(evt.shiftKey) {
-                next = [...startOfWordCells].reverse().find(({cell}) => getCellNumber(cell) < currentNumber);
+                // go back 1 word
+                // next = startOfWordCellsReversed.find(({cell}) => getCellNumber(cell) < cellNumber);
+                const anchor = currentIndex == 0 ? startOfWordCells.length : currentIndex;
+                next = startOfWordCells[anchor - 1];
+
              } else {
-                next = startOfWordCells.find(({cell}) => getCellNumber(cell) > currentNumber);
+                // go to next word
+               // next = startOfWordCells.find(({cell}) => getCellNumber(cell) > cellNumber);
+                const anchor = currentIndex == startOfWordCells.length -1 ? -1 : currentIndex;
+                next = startOfWordCells[anchor + 1];
             } 
-            console.log(next);            
             if(next) {                
                 direction = next.direction;
                 next.cell.dispatchEvent(new Event('click'));
-            }      
-        }
-
-        if(evt.key == 'Delete' || evt.key == 'Backspace') {
-            const letterId = cellId.replace('cell', 'letter');
-            const text = document.querySelector(`#${letterId}`);
-            text.textContent = "";
-        }
-
-            
+            } 
+            return;     
+        }             
     }
 
-  
+    // @TODO add mobile integration
+    function listenTokey(evt) {        
+        evt.target.addEventListener('keydown', keydown, true) ;
+     }  
 
     svg.addEventListener('click', (evt) => {
         evt.preventDefault();
@@ -251,28 +303,63 @@ function addActions(crossword) {
 
             // if a selected already exists, then remove the selection
             if(selected) {
-                selected.blur();
+                // selected.blur();
                 selected.removeEventListener('focus',listenTokey, false);
                 selected.removeEventListener('keydown',keydown, true);
             }
             //set new selected value
             selected = el;
             selected.addEventListener('focus',listenTokey, false);
+            selected.focus(); // avoid forced reflow - focus changes the style outline
 
-            const variable = selected.getAttribute(`data-variable-${direction}`);
+            // get the coords of the selected = variable
+            const selectedVariableCoords = getCellVariable(selected, direction); // selected.getAttribute(`data-variable-${direction}`);           
 
-            const all = [...document.querySelectorAll('[id*="cell-id"]')].filter(not(isBlackCell));
-            const refs = [...document.querySelectorAll(`[data-variable-${direction}="${variable}"]`)];
-            all.forEach(cell => { cell.setAttributeNS(null, 'fill', '#fff'); } );
-            refs.forEach(ref => { ref.setAttributeNS(null, 'fill', 'lightblue'); } );
-            selected.setAttributeNS(null, 'fill', 'yellow');
+            // get the cells that belong to the same variable as the selected         
+            // const refCells = [...document.querySelectorAll(`svg [data-variable-${direction}="${selectedVariableCoords}"]`)];
+            const refCells = activeCells.filter(cell => getCellVariable(cell,direction) == selectedVariableCoords );
 
-            selected.focus();
+            activeCells.forEach(makeCellAriaLabel);
+
+            const notInSelectedCells = activeCells.filter(cell => !refCells.includes(cell));
+            notInSelectedCells.forEach(fillWhite);
+            refCells.forEach(fillBlue);
+            fillYellow(selected);
         }        
 
     }, true);  // allow click event on cell to bubble upwards to the svg 
              // clicks will be captured by the svg before the cells underneath it
+             
+    function makeCellAriaLabel(cell) {
+        const selectedCellNumber = getCellNumber(selected);
+        const i = Math.floor(selectedCellNumber / crossword.height);
+        const j = selectedCellNumber%crossword.width;
+       // const cellCoords = getCellCoords(selected, crossword.width, crossword.height);
+        const cellVariable = getCellVariable(selected, direction).split('-'); //selected.getAttribute(`data-variable-${direction}`).split('-');
+        const variable = variables.find(v => Variable.isSameCell([v.i, v.j], cellVariable) && v.direction == direction );
 
-    
+        const letterIndex = variable.cells.findIndex(cell => Variable.isSameCell([i,j], cell));
+        const wordLengthDesc = `${variable.length} letters`;
+        const prefix = `${direction[0]}`.toUpperCase();        
+        const wordNumber = startOfWordCells
+                        .findIndex( ({cell}) => getCellVariable(cell, direction) == getCellVariable(selected, direction) );
+        
+        cell.setAttributeNS(null, 'aria-label', `${prefix}${wordNumber + 1}: clue, Answer: ${wordLengthDesc}, Letter ${letterIndex + 1}`);   
+    }
+
+  
+    function moveToCell(cellNumber, diff) {
+        let nextId = cellNumber+diff;
+        let next = document.getElementById(`cell-id-${nextId}`);
+            while(next && isBlackCell(next)) {
+                nextId += diff;
+                next = document.getElementById(`cell-id-${nextId}`);
+            }
+            if(next) {
+                next.dispatchEvent(new Event('click'));
+            }
+        return next;
+    }
+
 }
 

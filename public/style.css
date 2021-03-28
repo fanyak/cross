@@ -25,7 +25,7 @@
     width: 40%;
     height: 40%;   
   }
-
+   
   svg text {    
       font-weight: "100";
       font-family: inherit';  
@@ -33,6 +33,14 @@
 
   svg rect:focus {
     outline: none;
+  }
+
+
+.hidden {
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  opacity: 0.001;
 }
 
   
