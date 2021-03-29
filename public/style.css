@@ -22,16 +22,26 @@
   }
 
   svg {
-    width: 40%;
-    height: 40%;   
+    /*max-width: 90%;*/
+    max-height: 60%;
+    user-select: none;
   }
    
   svg text {    
       font-weight: "100";
-      font-family: inherit';  
+      font-family: inherit';
+      pointer-events: none;
   }
 
-  svg rect:focus {
+  svg rect {
+    -webkit-tap-highlight-color: transparent;    
+  }
+
+  svg:focus, svg rect:focus {
+    outline: none;
+  }
+
+  svg rect::-moz-focus-inner {
     outline: none;
   }
 
@@ -41,6 +51,13 @@
   height: 0;
   pointer-events: none;
   opacity: 0.001;
+  user-select: none;
 }
 
+
+@media (min-width: 900px) {
+  svg {
+    max-width: 40%;    
+  }
+}
   

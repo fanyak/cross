@@ -7,7 +7,7 @@ const files = ['api/grids/1', 'api/words/'];
 const cellSize = 33;
 const gridSpan = 495;
 const padding = 3;
-const LetterFontSize = 22;
+const letterFontSize = 22;
 const indexSize = 11;
 const letterPaddingLeft = cellSize*0.25; 
 const letterPaddingTop = cellSize*0.85;
@@ -22,7 +22,7 @@ const startOfWordCells = []; // this is in the order of the number indices
 const svgNamespace = 'http://www.w3.org/2000/svg';
 
 const main = document.querySelector('main');
-const svg = document.querySelector('SVG');
+const svg = document.querySelector('svg');
 
 Promise.all(files.map(file => fetch(file)))
     .then( responses => Promise.all( responses.map( response => response.json() ) ) )
@@ -100,9 +100,9 @@ function makeCells(crossword) {
             wordIndex.setAttributeNS(null, 'x', (j*cellSize)+padding + wordIndexPaddingLeft);
             wordIndex.setAttributeNS(null, 'y', (i*cellSize)+padding + wordIndexPaddingTop);
             wordIndex.setAttributeNS(null, 'stroke', 'black');
-            wordIndex.setAttributeNS(null, 'stroke-width', '0.2'); 
-            wordIndex.style.fontSize = indexSize;
-            wordIndex.style.pointerEvents = 'none'; // disable interacting with this svg element
+            wordIndex.setAttributeNS(null, 'stroke-width', '0.2');
+            wordIndex.setAttributeNS(null, 'style', `font-size: ${indexSize}px`)  ;   
+
 
 
             const letter = document.createElementNS(svgNamespace, 'text');
@@ -110,9 +110,8 @@ function makeCells(crossword) {
             letter.setAttributeNS(null, 'y', (i*cellSize)+padding + letterPaddingTop);
             letter.setAttributeNS(null,'stroke', 'black');
             letter.setAttributeNS(null, 'stroke-width', '0.3'); 
-            letter.setAttributeNS(null, 'id', `letter-id-${i*crossword.width + j}`);        
-            letter.style.fontSize = LetterFontSize;
-            letter.style.pointerEvents = 'none'; // disable interacting with this svg element
+            letter.setAttributeNS(null, 'id', `letter-id-${i*crossword.width + j}`);
+            letter.setAttributeNS(null, 'style', `font-size: ${letterFontSize}px`)  ;   
 
             // Help for Aria 
             const ariaLetter = document.createElementNS(svgNamespace, 'text');
@@ -169,79 +168,83 @@ function makeCells(crossword) {
 function addActions(crossword) {
     // CLOSURE
     let selected;
+    let rafPending;
     // this is static once the crossword is complete, don't recalculate it every time - use it from the closure
     const cells = [...document.querySelectorAll('svg [id*="cell-id"]')]; 
     const activeCells = cells.filter(not(isBlackCell));
     const variables = Array.from(crossword.variables);
+
+    // const textCells =[...document.querySelector(`svg [id*="leter-id"`)];
+    // const hiddenTextCells = [...document.querySelector(`svg [id*="letter-id"].hidden`)];
    // const startOfWordCellsReversed = [...startOfWordCells].reverse();  
    
-
-    function keydown(evt) {  
+    // trap keyevents after the 1st one?
+    document.addEventListener('keydown', (evt) => {
         evt.preventDefault();
+
+        console.log(evt);
+        // @ TODO replace the target check if it is out of functional elements
+        if(!selected && evt.key == 'Tab') {
+            const cell = document.querySelector('#cell-id-0');
+            cell.dispatchEvent(new Event('pointerdown', {bubbles: true}));
+            return;
+        }
+        if(selected) {
+            console.log(evt);
+            const {key, code, type, shiftKey} = evt;
+            keydown({target: selected, id:selected.id, key, code, type, shiftKey});
+        }
+    }, true);
+    
+
+    function keydown(evt) { 
+        // if not manually sent from an event on the body 
+        if(evt instanceof Event) {
+            console.log(evt);
+            evt.preventDefault();
+        } 
+
       
         const cellId = evt.target.id;
         const cellNumber = getCellNumber(evt.target);
 
         // edit cell content
         const char = isLetterEnglish(evt.key);
+        
+        if(char) {
+            const [text, hiddenText] = removeExistingContent(cellId);
+            // replace or add content in the cell
+            const letter = evt.key.toUpperCase();
+            const content = document.createTextNode(letter);
+            text.appendChild(content);
+            hiddenText.textContent = letter; 
 
-        if(char || ['Delete','Backspace'].includes(evt.key)) {
-
-            const letterId = cellId.replace('cell', 'letter');
-            const text = document.querySelector(`#${letterId}`);
-            const hiddenText = document.querySelector(`#${letterId} .hidden`);
-
-            let content = [...text.childNodes].find(not(isHiddenNode));
-            if (content) {
-                text.removeChild(content);
-            }
-
-            if(char) {
-                const letter = evt.key.toUpperCase();
-                content = document.createTextNode(letter);
-                text.appendChild(content);
-                hiddenText.textContent = letter; 
-
-                if(direction == 'across'){
-                    moveToCell(cellNumber, 1);
-                } else {
-                    moveToCell(cellNumber, 15);
-                }
-
+            if(direction == 'across'){
+                moveToCell(cellNumber, 1);
             } else {
-                if(content) {
-                    hiddenText.textContent = ''; 
+                moveToCell(cellNumber, 15);
+            } 
+            return;
+        }
+
+        if(['Delete','Backspace'].includes(evt.key)) {
+
+            const [ , , existingContent] = removeExistingContent(cellId);       
+               
+            if(evt.key == 'Backspace') { 
+                let next;
+                if(direction == 'across'){
+                    next = moveToCell(cellNumber, -1);
+                } else {
+                    next = moveToCell(cellNumber, -15);
                 }
-                if(evt.key == 'Backspace') { 
-                    let next;
-                    if(direction == 'across'){
-                       next = moveToCell(cellNumber, -1);
-                    } else {
-                        next = moveToCell(cellNumber, -15);
-                    }
-                    if(next) {
-                        if(!content) { // if the cell where we clicked backspace was empty, delete the previous cell contents
-                            const nextCellId = next.id;
-                            const nextCellNumber = getCellNumber(next);
-                            const nextTetterId = nextCellId.replace('cell', 'letter');
-                            const text = document.querySelector(`#${nextTetterId}`);
-                            const hiddenText = document.querySelector(`#${nextTetterId} .hidden`);
-
-                            let nextContent = [...text.childNodes].find(not(isHiddenNode));
-                            if (nextContent) {
-                                text.removeChild(nextContent);
-                                hiddenText.textContent = ''; 
-                            }
-
-                            // edit cell content
-                        }
-                    }
+                if(next && !existingContent) {
+                   // if the cell where we clicked backspace was empty, delete the previous cell contents
+                    const nextCellId = next.id;
+                    removeExistingContent(nextCellId);
                 }
-
             }
-
-            
-            
+           return;
         }  
         
         // navigate actions 
@@ -284,51 +287,73 @@ function addActions(crossword) {
             } 
             if(next) {                
                 direction = next.direction;
-                next.cell.dispatchEvent(new Event('click'));
+                // synchronous dispatch : https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/dispatchEvent
+                  // :dispatchEvent() invokes event handlers synchronously
+
+                // https://developer.mozilla.org/en-US/docs/Web/Guide/Events/Creating_and_triggering_events#event_bubbling
+                    //: trigger an event from a child element, and have an ancestor catch it(svg will catch it)
+                next.cell.dispatchEvent(new Event('pointerdown'), {bubbles: true});
             } 
             return;     
         }             
     }
 
-    // @TODO add mobile integration
-    function listenTokey(evt) {        
-        evt.target.addEventListener('keydown', keydown, true) ;
-     }  
+     if (window.PointerEvent) {
+    // Add Pointer Event Listener
+    // allow click event on cell to bubble upwards to the svg 
+        // clicks will be captured by the svg before the cells underneath it
+        svg.addEventListener('pointerdown', startInteraction, true);
+    } else {
+        // add Touch event
+        svg.addEventListener('touchstart', startInteraction, true);
+        svg.addEventListener('mousedown', startInteraction, true);
+    }
+   
 
-    svg.addEventListener('click', (evt) => {
+    function startInteraction(evt) {
+        console.log(evt);
         evt.preventDefault();
+
         const el = document.getElementById(evt.target.id);
 
         if(el && el.id.includes('cell') && not(isBlackCell)(el)) {
 
-            // if a selected already exists, then remove the selection
-            if(selected) {
-                // selected.blur();
-                selected.removeEventListener('focus',listenTokey, false);
-                selected.removeEventListener('keydown',keydown, true);
-            }
-            //set new selected value
             selected = el;
-            selected.addEventListener('focus',listenTokey, false);
-            selected.focus(); // avoid forced reflow - focus changes the style outline
-
-            // get the coords of the selected = variable
-            const selectedVariableCoords = getCellVariable(selected, direction); // selected.getAttribute(`data-variable-${direction}`);           
-
-            // get the cells that belong to the same variable as the selected         
-            // const refCells = [...document.querySelectorAll(`svg [data-variable-${direction}="${selectedVariableCoords}"]`)];
-            const refCells = activeCells.filter(cell => getCellVariable(cell,direction) == selectedVariableCoords );
-
-            activeCells.forEach(makeCellAriaLabel);
-
-            const notInSelectedCells = activeCells.filter(cell => !refCells.includes(cell));
-            notInSelectedCells.forEach(fillWhite);
-            refCells.forEach(fillBlue);
-            fillYellow(selected);
+            console.log(document.activeElement);
+            updateUI();
+            if(rafPending) {
+                return;
+            }
+            
+            rafPending = true;
+            window.requestAnimationFrame(updateUI);
         }        
 
-    }, true);  // allow click event on cell to bubble upwards to the svg 
-             // clicks will be captured by the svg before the cells underneath it
+    }
+
+    function updateUI() {
+        console.log(selected);
+        
+        if(!rafPending) {
+            return;
+        }
+    
+        // get the coords of the selected = variable
+        const selectedVariableCoords = getCellVariable(selected, direction); // selected.getAttribute(`data-variable-${direction}`);           
+
+        // get the cells that belong to the same variable as the selected         
+        // const refCells = [...document.querySelectorAll(`svg [data-variable-${direction}="${selectedVariableCoords}"]`)];
+        const refCells = activeCells.filter(cell => getCellVariable(cell,direction) == selectedVariableCoords );
+
+        activeCells.forEach(makeCellAriaLabel);
+
+        const notInSelectedCells = activeCells.filter(cell => !refCells.includes(cell));
+        notInSelectedCells.forEach(fillWhite);
+        refCells.forEach(fillBlue);
+        fillYellow(selected);
+
+        //rafPending = false;
+    }
              
     function makeCellAriaLabel(cell) {
         const selectedCellNumber = getCellNumber(selected);
@@ -349,6 +374,7 @@ function addActions(crossword) {
 
   
     function moveToCell(cellNumber, diff) {
+        
         let nextId = cellNumber+diff;
         let next = document.getElementById(`cell-id-${nextId}`);
             while(next && isBlackCell(next)) {
@@ -356,10 +382,26 @@ function addActions(crossword) {
                 next = document.getElementById(`cell-id-${nextId}`);
             }
             if(next) {
-                next.dispatchEvent(new Event('click'));
+                 // synchronous dispatch : https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/dispatchEvent
+                next.dispatchEvent(new Event('pointerdown'), {bubbles: true,});
+                // @TODO add new Event support for IE 11?
             }
         return next;
     }
+
+    function removeExistingContent(cellId) {
+        const letterId = cellId.replace('cell', 'letter');
+        const text = document.querySelector(`#${letterId}`);
+        const hiddenText = document.querySelector(`#${letterId} .hidden`);
+
+        const content = [...text.childNodes].find(not(isHiddenNode));
+        if (content) {
+            text.removeChild(content);
+        }
+        return ([text, hiddenText, content]);
+    }
+
+   
 
 }
 
