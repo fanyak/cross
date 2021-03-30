@@ -1,21 +1,5 @@
 // REF https://v8.dev/features/modules
-class Variable {
-
-    static ACROSS = 'across';
-    static DOWN = 'down';
-    
-    static isSameCell(cell1, cell2) {
-        // console.log(cell1, cell2)
-        if(cell1.length !== cell2.length){
-            return false;
-        }
-        for(let key of cell1.keys()){
-            if (cell1[key] != cell2[key]){
-                return false;
-            }
-        }
-        return true;    
-    }
+class Variable { 
 
     constructor(i, j, direction, length) {
     ///Create a new variable with starting point, direction, and length."""
@@ -38,7 +22,7 @@ class Variable {
             (this.j == other.j) &&
             (this.direction == other.direction) &&
             (this.length == other.length)
-        ) 
+        ); 
     }
 
     toString(){
@@ -56,6 +40,26 @@ class Variable {
     }
 
 }
+
+// Adding properties to the Constructor of Variable - not to the prototype
+// This is a workaround to Static Methods, not supported in safari
+// https://www.w3schools.com/js/js_object_constructors.asp
+
+Variable.ACROSS = 'across';
+Variable.DOWN = 'down';
+
+Variable.isSameCell = (cell1, cell2) => {
+    // console.log(cell1, cell2)
+    if(cell1.length !== cell2.length){
+        return false;
+    }
+    for(let key of cell1.keys()){
+        if (cell1[key] != cell2[key]) { // not strict equality => want to match strings to numbers instead of parsing
+            return false;
+        }
+    }
+    return true;    
+};
  
 
 class Crossword {
@@ -79,11 +83,11 @@ class Crossword {
         }
         // console.log(this.structure)
 
-        this.words = [...new Set( words.vocab.map(word => word.toUpperCase() ) )]
+        this.words = [...new Set( words.vocab.map(word => word.toUpperCase() ) )];
         //console.log(this.words.slice(0,10))
 
         // Determine variable set
-        this.variables = new Set()
+        this.variables = new Set();
 
         for (let i=0; i <this.height; i++) {
             for (let j=0 ; j<this.width; j++) {
@@ -94,7 +98,7 @@ class Crossword {
                     && (i == 0 || !this.structure[i - 1][j]) );
 
                 if (starts_word) {
-                    let length = 1
+                    let length = 1;
                     for (let k=i + 1; k<this.height; k++) {
                         if (this.structure[k][j]) {
                             length+= 1;
@@ -120,7 +124,7 @@ class Crossword {
                     &&  (j == 0 || !this.structure[i][j - 1])
                 );
                 if (starts_word) {
-                    let length = 1
+                    let length = 1;
                     for (let k = j + 1; k < this.width; k++) {
                         if (this.structure[i][k]) {
                             length += 1;
@@ -153,7 +157,7 @@ class Crossword {
                 if (v1.equals(v2)) {
                     continue;
                 }
-                const intersection = v1.intersection(v2)
+                const intersection = v1.intersection(v2);
                 if (!intersection.size) {
                     this.overlaps.set([v1, v2], null);
                 } else {
@@ -184,4 +188,4 @@ class Crossword {
 }
 
 
-export {Crossword, Variable}
+export {Crossword, Variable};

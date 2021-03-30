@@ -54,10 +54,76 @@
   user-select: none;
 }
 
+.keyboard:not(touch) {
+  display:none;
+} 
+
+.keyboard.touch {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: auto;
+  background-color: lightgrey;
+  padding: 8px 0;
+}
+
+.keyboard_row {
+  max-width: 100%;
+  display: flex;
+  flex-direction: row; 
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.keyboard .button {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: horizontal;
+  -webkit-box-direction: normal;
+  -webkit-flex-direction: row;
+  -ms-flex-direction: row;
+  flex-direction: row;
+  -webkit-box-align: center;
+  -webkit-align-items: center;
+  -ms-flex-align: center;
+  align-items: center;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  background-color: #fff;
+  border-radius: 3px;
+  -webkit-box-shadow: 0 1px 1px 0 rgb(0 0 0 / 8%);
+  box-shadow: 0 1px 1px 0 rgb(0 0 0 / 8%);
+  color: #000;
+  font: 300 3vw sans-serif;
+  height: 100%;
+  margin: 1.5% 0.6%;
+  outline: none;
+  padding: 1% 0.5%;
+  position: relative;
+  width: 8.5%;
+}
+
+.keyboard .button.backspace {
+  font-size: 6vw;
+  padding-right: 5px;
+  color: deepskyblue;
+}
 
 @media (min-width: 900px) {
   svg {
     max-width: 40%;    
+  }
+}
+
+@media (max-width: 499px) {
+  .keyboard .button {
+      font-size: 7vw;
+      height: 92%;
+      margin: 2px;
   }
 }
   

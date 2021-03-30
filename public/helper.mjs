@@ -24,7 +24,7 @@ export function getCellVariable(cell, direction) {
 }
 
 export function getCellCoords(cell, width, height){
-  const cellNumber = getCellNumber(cell);
+  const cellNumber = parseInt(cell.id.split('-')[2]);
   const i = Math.floor(cellNumber / height);
   const j = cellNumber%width;
   return ([i,j]);

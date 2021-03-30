@@ -23,31 +23,18 @@
                 <section></section>
         </article>
 
-        <div class="keyboard">
-            <div classs="keyboard_row"></div>
-            <div class="keyboard_row"></div>
+        <div class="keyboard touch">
+   
         </div>
+
     </main>
 
   
     <script src="main.mjs" type="module"></script>
 
     <script>
-        // function sendfocus(evt) {
-        //     evt.preventDefault();
-        //     if(evt.key == 'Tab' && document.activeElement == document.querySelector('body')){
-        //         document.removeEventListener('keydown', sendfocus, true);
-        //         const cell = document.querySelector('#cell-id-0');
-        //         cell.dispatchEvent(new Event('pointerdown', {bubbles: true}));
-        //     }
-        // }
-
         window.addEventListener('load', (evt) => {
-            if (navigator.maxTouchPoints >= 1) {
-                    // browser supports multi-touch
-                    console.log('touch')
-            }
-          // document.addEventListener('keydown', sendfocus, true);
+            
         });
     </script>
 </body>
