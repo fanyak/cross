@@ -21,20 +21,44 @@
     font-family: "arial,sans-serif";
   }
 
+  section[aria-label="puzzle grid"] {
+    position: relative;
+    height: 60vh;
+  }
+
+  .board {
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    right: 1px;
+    bottom: 1px;
+    transition: transform 0s ease-in-out 0s;  /* name duration transition function delay */
+    transform: translate(0px, 0px) scale(1);
+    touch-action: none; /*Disable browser handling of all panning and zooming gestures.*/
+    user-select: none;
+    -webkit-user-drag: none;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  }
+
   svg {
     /*max-width: 90%;*/
-    max-height: 60%;
+    width: 100%;
+    height: 100%;
     user-select: none;
   }
    
   svg text {    
       font-weight: "100";
-      font-family: inherit';
+      font-family: 'inherit';
       pointer-events: none;
   }
 
   svg rect {
-    -webkit-tap-highlight-color: transparent;    
+    -webkit-tap-highlight-color: transparent;     
+  }
+
+  svg path {
+    user-select: none;
   }
 
   svg:focus, svg rect:focus {
@@ -44,6 +68,13 @@
   svg rect::-moz-focus-inner {
     outline: none;
   }
+
+  
+@media (min-width: 900px) {
+  svg {
+    max-width: 40%;    
+  }
+}
 
 
 .hidden {
@@ -63,19 +94,24 @@
   flex-direction: column;
   width: 100%;
   height: auto;
-  background-color: lightgrey;
+  position: fixed;
+  bottom:0;
+  left:0;
+  z-index:1;
   padding: 8px 0;
+  background-color: lightgrey;
+
 }
 
-.keyboard_row {
-  max-width: 100%;
+.keyboard.touch .keyboard_row {
   display: flex;
   flex-direction: row; 
   justify-content: center;
+  max-width: 100%;
   margin-top: 2px;
 }
 
-.keyboard .button {
+.keyboard.touch .button {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -107,23 +143,19 @@
   width: 8.5%;
 }
 
-.keyboard .button.backspace {
+.keyboard.touch .button.backspace {
   font-size: 6vw;
   padding-right: 5px;
   color: deepskyblue;
 }
 
-@media (min-width: 900px) {
-  svg {
-    max-width: 40%;    
-  }
-}
 
 @media (max-width: 499px) {
-  .keyboard .button {
+  .keyboard.touch .button {
       font-size: 7vw;
       height: 92%;
       margin: 2px;
   }
 }
-  
+
+
