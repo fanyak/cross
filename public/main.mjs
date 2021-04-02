@@ -218,6 +218,12 @@ function addActions(crossword) {
     }, true);
 
     board.addEventListener('touchmove', (pinchZoom), true);
+    board.addEventListener('touchend', (evt) => {
+        // move to action.mjs
+        // closure on action
+        action.zoomPending = false;
+        action.zoomStart = undefined;
+    });
 
     // return the action instance 
     return action;

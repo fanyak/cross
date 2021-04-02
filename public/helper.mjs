@@ -58,8 +58,16 @@ export function createUserAction() {
 }
 
 export function touchesDistance(touch1, touch2) {
-  var dist = Math.hypot(
+  const dist = Math.hypot(
     touch1.pageX - touch2.pageX,
     touch1.pageY - touch2.pageY);
   return dist;
 }
+
+export function touchesCoords(touch1, touch2) {
+  const c1 = [touch1.clientX, touch1.clientY];
+  const c2 = [touch2.clientX, touch2.clientY];
+  return c1;
+}
+
+

@@ -1,6 +1,6 @@
 import { Variable } from './cross.mjs';
 import {
-    not, isBlackCell, getCellNumber, isLetterEnglish, fillBlue, fillWhite, fillYellow, getCellVariable, isHiddenNode, getCellCoords, createUserAction, touchesDistance
+    not, isBlackCell, getCellNumber, isLetterEnglish, fillBlue, fillWhite, fillYellow, getCellVariable, isHiddenNode, getCellCoords, createUserAction, touchesDistance, touchesCoords
 } from './helper.mjs';
 
 
@@ -22,6 +22,9 @@ export class Action {
         this.zoomStart;
         this.zoomLevel = 1;
         this.zoomPending = false;
+
+        this.initialTouch = [0, 0];
+        this.position = [0, 0];
     }
 
 
@@ -247,19 +250,46 @@ export class Action {
         // 'src' value is used from closure,
         // evt and zoomLevel are passed as the values they have at the moment of calling
         const animate = () => {
-            let x, y;
+            let x, y, nextX, nextY;
             if (this.zoomLevel == 1) {
                 x = y = 0;
             } else {
-                x = evt.touches[0].pageX / 10;
-                y = evt.touches[1].pageY / 10;
+                // [nextX, nextY] = touchesCoords(...evt.touches);
+                // x = (this.position[0] + (this.initialTouch[0] - nextX));
+                // y = (this.position[1] + (this.initialTouch[1] - nextY));
+                // console.log(nextX, x, nextY, y, this.initialTouch);
             }
             return () => {
 
                 if (!this.zoomPending) {
                     return;
                 }
+
+                src.style.transition = 'transform 0s ease-in-out 0s';
                 src.style.transform = `translate(${0}px, ${0}px) scale(${this.zoomLevel})`;
+
+                // reset to 1
+                if ((0.6 <= parseFloat(this.zoomLevel) && parseFloat(this.zoomLevel) < 1) || (2 <= parseFloat(this.zoomLevel))) {
+                    const reset = function () {
+                        //  THEN HANDLERS are called Asynchronously.
+                        // REF: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/resolve#resolving_thenables_and_throwing_errors
+                        const p = Promise.resolve({
+                            then: function (onFulfill, onReject) { onFulfill(); }
+                        });
+                        p.then(() => {
+                            // wait until you allow new animation after reset
+                            // then handlers are called asynchronously
+                            this.zoomPending = false;
+                        });
+                        this.zoomLevel = parseFloat(this.zoomLevel) < 1 ? 1 : 2;
+                        this.zoomStart = undefined;
+                        src.style.transition = 'transform 0.5s ease-out 0s';
+                        src.style.transform = `translate(${0}px, ${0}px) scale(${this.zoomLevel})`;
+                    }.bind(this);
+                    window.requestAnimationFrame(reset);
+                    return;
+                }
+
                 this.zoomPending = false;
                 this.zoomStart = undefined;
             };
@@ -272,33 +302,33 @@ export class Action {
                 return;
             }
 
-            console.log(this.zoomStart);
+            // console.log(this.zoomStart);
 
             if (!this.zoomStart) {
                 this.zoomStart = touchesDistance(...evt.touches);
                 return;
             }
             const zoomNext = touchesDistance(...evt.touches);
-            const max = Math.max(this.zoomStart, zoomNext);
 
             const change = zoomNext - this.zoomStart;
-            // zoom 1n
+
+            // Zoom In
             if (change > 0) {
                 // reset to  1 from the miminum set to 0.8
                 // zoom in
                 this.zoomLevel += change / 10;
 
             } else {
-                //zoom out               
+                // Zoom Out               
                 this.zoomLevel -= (this.zoomStart - zoomNext) / 10;
             }
 
 
-            if (this.zoomLevel > 1.8) {
-                this.zoomLevel = 1.8;
+            if (this.zoomLevel > 3) {
+                this.zoomLevel = 3;
             }
-            if (this.zoomLevel < 0.8) {
-                this.zoomLevel = 0.8;
+            if (this.zoomLevel < 0.6) {
+                this.zoomLevel = 0.6;
             }
 
             this.zoomPending = true;
@@ -306,6 +336,8 @@ export class Action {
             window.requestAnimationFrame(f);
         } else {
             // 1 finger touch = move
+
+
         }
     }
 
