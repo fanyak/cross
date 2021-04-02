@@ -223,6 +223,10 @@ function addActions(crossword) {
         // closure on action
         action.zoomPending = false;
         action.zoomStart = undefined;
+        action.rafPending = false;
+        // update move event
+        action.position = [...action.lastHoldPosition];
+        action.initialTouch = undefined;
     });
 
     // return the action instance 

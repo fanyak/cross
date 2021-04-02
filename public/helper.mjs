@@ -65,8 +65,14 @@ export function touchesDistance(touch1, touch2) {
 }
 
 export function touchesCoords(touch1, touch2) {
-  const c1 = [touch1.clientX, touch1.clientY];
-  const c2 = [touch2.clientX, touch2.clientY];
+  let c1, c2;
+
+  // use touch.clientX, touch.clientY
+  // REF: https://developer.mozilla.org/en-US/docs/Web/API/Touch/clientX#example
+  c1 = [touch1.clientX, touch1.clientY];
+  if (touch2) {
+    c2 = [touch2.clientX, touch2.clientY];
+  }
   return c1;
 }
 

@@ -23,7 +23,8 @@ export class Action {
         this.zoomLevel = 1;
         this.zoomPending = false;
 
-        this.initialTouch = [0, 0];
+        this.initialTouch;
+        this.lastHoldPosition = [0, 0];
         this.position = [0, 0];
     }
 
@@ -250,49 +251,56 @@ export class Action {
         // 'src' value is used from closure,
         // evt and zoomLevel are passed as the values they have at the moment of calling
         const animate = () => {
-            let x, y, nextX, nextY;
+
+            if (!this.zoomPending) {
+                return;
+            }
+
+            let x, y;
             if (this.zoomLevel == 1) {
                 x = y = 0;
+                this.lastHoldPosition = [x, y];
             } else {
-                // [nextX, nextY] = touchesCoords(...evt.touches);
-                // x = (this.position[0] + (this.initialTouch[0] - nextX));
-                // y = (this.position[1] + (this.initialTouch[1] - nextY));
-                // console.log(nextX, x, nextY, y, this.initialTouch);
+                [x, y] = this.lastHoldPosition;
             }
-            return () => {
 
-                if (!this.zoomPending) {
-                    return;
-                }
+            src.style.transition = 'transform 0s ease-out 0s';
+            src.style.transform = `translate(${x}px, ${y}px) scale(${this.zoomLevel})`;
 
-                src.style.transition = 'transform 0s ease-in-out 0s';
-                src.style.transform = `translate(${0}px, ${0}px) scale(${this.zoomLevel})`;
+            // Schedule a reset if too large or to small
+            // if too small, then reset to 1 AND center to the middle (x=y=o)
+            // if too big, then reset to 2
+            if ((parseFloat(this.zoomLevel) < 1) || (3 <= parseFloat(this.zoomLevel))) {
 
-                // reset to 1
-                if ((0.6 <= parseFloat(this.zoomLevel) && parseFloat(this.zoomLevel) < 1) || (2 <= parseFloat(this.zoomLevel))) {
-                    const reset = function () {
-                        //  THEN HANDLERS are called Asynchronously.
-                        // REF: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/resolve#resolving_thenables_and_throwing_errors
-                        const p = Promise.resolve({
-                            then: function (onFulfill, onReject) { onFulfill(); }
-                        });
-                        p.then(() => {
-                            // wait until you allow new animation after reset
-                            // then handlers are called asynchronously
-                            this.zoomPending = false;
-                        });
-                        this.zoomLevel = parseFloat(this.zoomLevel) < 1 ? 1 : 2;
-                        this.zoomStart = undefined;
-                        src.style.transition = 'transform 0.5s ease-out 0s';
-                        src.style.transform = `translate(${0}px, ${0}px) scale(${this.zoomLevel})`;
-                    }.bind(this);
-                    window.requestAnimationFrame(reset);
-                    return;
-                }
+                const reset = function () {
 
-                this.zoomPending = false;
-                this.zoomStart = undefined;
-            };
+                    //  THEN HANDLERS are called Asynchronously.
+                    // REF: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/resolve#resolving_thenables_and_throwing_errors
+                    const p = Promise.resolve({
+                        then: function (onFulfill, onReject) { onFulfill(); }
+                    });
+                    p.then(() => {
+                        // wait until you allow new animation after reset
+                        // then handlers are called asynchronously
+                        this.zoomPending = false;
+                    });
+
+                    this.zoomLevel = parseFloat(this.zoomLevel) < 1 ? 1 : 3;
+                    this.zoomStart = undefined;
+
+                    src.style.transition = 'transform 0.5s ease-in 0s';
+                    /// x,y are taken from the closure
+                    src.style.transform = `translate(${x}px, ${y}px) scale(${this.zoomLevel})`;
+
+                }.bind(this);
+
+                window.requestAnimationFrame(reset);
+                return;
+            }
+
+            this.zoomPending = false;
+            this.zoomStart = undefined;
+
         };
 
         if (evt.touches.length >= 2) {
@@ -324,19 +332,51 @@ export class Action {
             }
 
 
-            if (this.zoomLevel > 3) {
-                this.zoomLevel = 3;
+            if (this.zoomLevel > 4) {
+                this.zoomLevel = 4;
             }
-            if (this.zoomLevel < 0.6) {
-                this.zoomLevel = 0.6;
+            if (this.zoomLevel < 0.4) {
+                this.zoomLevel = 0.4;
             }
 
             this.zoomPending = true;
-            const f = animate().bind(this);
+            const f = animate.bind(this);
             window.requestAnimationFrame(f);
+
         } else {
             // 1 finger touch = move
+            // REF: https://developers.google.com/web/fundamentals/design-and-ux/input/touch#use_requestanimationframe
+            if (this.zoomPending || this.rafPending) {
+                return;
+            }
+            if (!this.initialTouch) {
 
+                this.initialTouch = touchesCoords(evt.touches[0]);
+                return;
+
+            } else {
+                const [nextX, nextY] = touchesCoords(evt.touches[0]);
+                const x = (this.position[0] + -(this.initialTouch[0] - nextX));
+                const y = (this.position[1] + -(this.initialTouch[1] - nextY));
+
+                if ((Math.abs(Math.abs(x) - window.screen.availWidth) < 100)
+                    || (Math.abs(Math.abs(y) - window.screen.availHeight) < 450)) {
+                    return;
+                }
+
+                const f = function () {
+                    if (!this.rafPending) {
+                        return;
+                    }
+                    src.style.transition = 'transform 0s ease-out 0s';
+                    src.style.transform = `translate(${x}px, ${y}px) scale(${this.zoomLevel})`;
+                    this.lastHoldPosition = [x, y];
+                    this.rafPending = false;
+                }.bind(this);
+
+                this.rafPending = true;
+                window.requestAnimationFrame(f);
+            }
 
         }
     }
