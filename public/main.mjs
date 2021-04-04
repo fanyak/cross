@@ -183,6 +183,10 @@ function addActions(crossword) {
     const activate = action.activate.bind(action);
     const keydown = action.keydown.bind(action);
     const pinchZoom = action.pinchZoom.bind(action, board);
+    const reset = action.reset.bind(action, board);
+
+    const cell = document.querySelector('#cell-id-0');
+    action.cellSpace = cell.getBoundingClientRect();
 
     if (window.PointerEvent) {
         // Add Pointer Event Listener
@@ -201,7 +205,6 @@ function addActions(crossword) {
         evt.preventDefault();
         // @ TODO replace the target check if it is out of functional elements
         if (!action.selected && evt.key == 'Tab') {
-            const cell = document.querySelector('#cell-id-0');
             // send the activation event to parent (svg) via the child (cell)          
             cell.dispatchEvent(new Event(createUserAction(), { bubbles: true }));
             return;
@@ -217,17 +220,8 @@ function addActions(crossword) {
         useTouch = false;
     }, true);
 
-    board.addEventListener('touchmove', (pinchZoom), true);
-    board.addEventListener('touchend', (evt) => {
-        // move to action.mjs
-        // closure on action
-        action.zoomPending = false;
-        action.zoomStart = undefined;
-        action.rafPending = false;
-        // update move event
-        action.position = [...action.lastHoldPosition];
-        action.initialTouch = undefined;
-    });
+    board.addEventListener('touchmove', pinchZoom, true);
+    board.addEventListener('touchend', reset, true);
 
     // return the action instance 
     return action;

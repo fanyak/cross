@@ -12,6 +12,7 @@ export class Action {
 
         this.selected;
         this.direction = direction; // initial direction setting
+        this.cellSpace;
 
         // these are static once the crossword is complete, don't recalculate it every time  
         this.startOfWordCells = startOfWordCells;  // this is ordered by word index for the display cells    
@@ -147,7 +148,6 @@ export class Action {
 
             // doubleclicking to change direction
             if (this.selected && el.id == this.selected.id) {
-                console.log(el);
                 this.changeDirection();
                 return;
             }
@@ -243,9 +243,11 @@ export class Action {
         cell.dispatchEvent(new Event(createUserAction()), { bubbles: true });
     }
 
+    // zoom and touchMove events
     pinchZoom(src, evt) {
-
-        evt.preventDefault();
+        if (evt.cancelable) {
+            evt.preventDefault();
+        }
 
         // use arrow function "this"
         // 'src' value is used from closure,
@@ -261,46 +263,15 @@ export class Action {
                 x = y = 0;
                 this.lastHoldPosition = [x, y];
             } else {
-                [x, y] = this.lastHoldPosition;
+                [x, y] = [...this.lastHoldPosition]; // if there was a move
             }
 
             src.style.transition = 'transform 0s ease-out 0s';
             src.style.transform = `translate(${x}px, ${y}px) scale(${this.zoomLevel})`;
 
-            // Schedule a reset if too large or to small
-            // if too small, then reset to 1 AND center to the middle (x=y=o)
-            // if too big, then reset to 2
-            if ((parseFloat(this.zoomLevel) < 1) || (3 <= parseFloat(this.zoomLevel))) {
-
-                const reset = function () {
-
-                    //  THEN HANDLERS are called Asynchronously.
-                    // REF: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/resolve#resolving_thenables_and_throwing_errors
-                    const p = Promise.resolve({
-                        then: function (onFulfill, onReject) { onFulfill(); }
-                    });
-                    p.then(() => {
-                        // wait until you allow new animation after reset
-                        // then handlers are called asynchronously
-                        this.zoomPending = false;
-                    });
-
-                    this.zoomLevel = parseFloat(this.zoomLevel) < 1 ? 1 : 3;
-                    this.zoomStart = undefined;
-
-                    src.style.transition = 'transform 0.5s ease-in 0s';
-                    /// x,y are taken from the closure
-                    src.style.transform = `translate(${x}px, ${y}px) scale(${this.zoomLevel})`;
-
-                }.bind(this);
-
-                window.requestAnimationFrame(reset);
-                return;
-            }
-
+            // allow next animation
             this.zoomPending = false;
             this.zoomStart = undefined;
-
         };
 
         if (evt.touches.length >= 2) {
@@ -332,12 +303,20 @@ export class Action {
             }
 
 
-            if (this.zoomLevel > 4) {
-                this.zoomLevel = 4;
+            if (this.zoomLevel > 3) {
+                this.zoomLevel = 3;
             }
             if (this.zoomLevel < 0.4) {
                 this.zoomLevel = 0.4;
             }
+
+            // // prevent from zooming out when the crossword is near the edges
+            // let x, y = this.lastHoldPosition;
+            // if (((Math.abs(Math.abs(x) - window.screen.availWidth) < 100)
+            //     || (Math.abs(Math.abs(y) - window.screen.availHeight) < 450)) && this.zoomLeel < 0.6) {
+
+            //     this.zoomLevel = 0.6;
+            // }
 
             this.zoomPending = true;
             const f = animate.bind(this);
@@ -345,12 +324,12 @@ export class Action {
 
         } else {
             // 1 finger touch = move
+
             // REF: https://developers.google.com/web/fundamentals/design-and-ux/input/touch#use_requestanimationframe
-            if (this.zoomPending || this.rafPending) {
+            if (this.zoomPending || this.rafPending || this.zoomLevel == 1) {
                 return;
             }
             if (!this.initialTouch) {
-
                 this.initialTouch = touchesCoords(evt.touches[0]);
                 return;
 
@@ -358,11 +337,6 @@ export class Action {
                 const [nextX, nextY] = touchesCoords(evt.touches[0]);
                 const x = (this.position[0] + -(this.initialTouch[0] - nextX));
                 const y = (this.position[1] + -(this.initialTouch[1] - nextY));
-
-                if ((Math.abs(Math.abs(x) - window.screen.availWidth) < 100)
-                    || (Math.abs(Math.abs(y) - window.screen.availHeight) < 450)) {
-                    return;
-                }
 
                 const f = function () {
                     if (!this.rafPending) {
@@ -381,6 +355,113 @@ export class Action {
         }
     }
 
+
+    reset(src, evt) {
+        evt.preventDefault();
+
+        this.zoomPending = false;
+        this.zoomStart = undefined;
+        this.rafPending = false;
+
+        // update move event
+        this.position = [...this.lastHoldPosition];
+        this.initialTouch = undefined;
+
+        //Schedule a reset if too large or to small
+        //if too small, then reset to 1 AND center to the middle(x = y = o)
+        // if too big, then reset to 2
+
+        if ((parseFloat(this.zoomLevel) < 1) || (2 <= parseFloat(this.zoomLevel))) {
+
+            const reset = function () {
+                let x, y;
+                if (!this.zoomPending) {
+                    return;
+                }
+
+                this.zoomLevel = parseFloat(this.zoomLevel) < 1 ? 1 : 2;
+
+                // touchEnd
+                if (this.zoomLevel == 1) {
+                    x = y = 0;
+                    this.lastHoldPosition = [x, y];
+                    this.position = [...this.lastHoldPosition];
+                } else {
+                    [x, y] = this.lastHoldPosition;
+                }
+
+                src.style.transition = 'transform 0.5s ease-in 0s';
+                /// x,y are taken from the closure
+                src.style.transform = `translate(${x}px, ${y}px) scale(${this.zoomLevel})`;
+
+                this.zoomPending = false;
+
+            }.bind(this);
+
+            if (this.zoomPending) {
+                //  THEN HANDLERS are called Asynchronously.
+                // REF: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/resolve#resolving_thenables_and_throwing_errors
+
+                const p = Promise.resolve({
+                    then: function (resolve, reject) {
+                        resolve();
+                    }
+                });
+                p.then(() => {
+                    this.zoomPending = true;
+                    window.requestAnimationFrame(reset);
+                });
+            } else {
+                this.zoomPending = true;
+                window.requestAnimationFrame(reset);
+            }
+
+        }
+
+        // Schedule a reset touch position too left or too right
+        const { x, y, width, height, left, top, bottom, right } = src.getBoundingClientRect();
+        const keyBoardHeight = document.querySelector('.keyboard.touch').getBoundingClientRect().height; //;
+        const { availWidth, availHeight } = window.screen;
+        const statusBarHeight = availHeight - window.innerHeight;
+
+        // the reset values for the translate function are relative to the original position, considered 0, no matter the x,y values
+        let [resetX, resetY] = [...this.position];
+
+        if (availWidth < width) {
+
+            const reset = function () {
+                if (left < -(width - availWidth)) {
+                    resetX = ((availWidth - width) / 2) - (10);
+                } else if (right > width) { // if we have moved from the original (right = width)
+                    resetX = Math.abs(((availWidth - width) / 2)) + 10;
+                }
+                console.log(top, height, bottom, availHeight);
+
+                if (bottom > height) { // if we moved down
+                    resetY = Math.abs((availHeight - (keyBoardHeight + statusBarHeight) - height) / 2); //relative to the original
+                } else if (bottom < ((availHeight - keyBoardHeight) / 2)) {
+                    resetY = (height - availHeight - keyBoardHeight);
+                }
+
+                // touchEnd         
+                src.style.transition = 'transform 0.5s ease-in 0s';
+                /// x,y are taken from the closure
+                src.style.transform = `translate(${resetX}px, ${resetY}px) scale(${this.zoomLevel})`;
+
+                this.position = [resetX, resetY];
+                this.lastHoldPosition = [...this.position];
+
+                this.rafPending = false;
+
+
+            }.bind(this);
+
+            this.rafPending = true;
+            window.requestAnimationFrame(reset);
+
+        }
+
+    }
 
 }
 
