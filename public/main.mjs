@@ -1,7 +1,7 @@
 import { Crossword, Variable } from './cross.mjs';
-import { not, createUserAction } from './helper.mjs';
+import { not, createUserAction, createUserActionEnd } from './helper.mjs';
 import { Action } from './action.mjs';
-import { createKeys, extractKeyEvent } from './keyboard.mjs';
+import { createKeys, extractKeyEvent, toggleKeyPressClass } from './keyboard.mjs';
 import { Hammer } from './hammer.mjs';
 
 const crosswordDimentions = [15, 15];
@@ -103,10 +103,10 @@ function makeCells(crossword) {
 
         const row = crossword.structure[i];
 
-        for (let j = 0; j < crossword.width; j++) {
+        const cellGroup = document.createElementNS(svgNamespace, 'g');
+        cellGroup.setAttributeNS(null, 'role', 'row');
 
-            const cellGroup = document.createElementNS(svgNamespace, 'g');
-            cellGroup.setAttributeNS(null, 'role', 'row');
+        for (let j = 0; j < crossword.width; j++) {
 
             const wordIndex = document.createElementNS(svgNamespace, 'text');
             wordIndex.setAttributeNS(null, 'x', (j * cellSize) + padding + wordIndexPaddingLeft);
@@ -182,8 +182,9 @@ function addActions(crossword) {
     const action = new Action(crossword, direction, startOfWordCells);
     const activate = action.activate.bind(action);
     const keydown = action.keydown.bind(action);
-    const pinchZoom = action.pinchZoom.bind(action, board);
+    const touchAction = action.touchAction.bind(action, board);
     const reset = action.reset.bind(action, board);
+
 
     const cell = document.querySelector('#cell-id-0');
     action.cellSpace = cell.getBoundingClientRect();
@@ -220,7 +221,7 @@ function addActions(crossword) {
         useTouch = false;
     }, true);
 
-    board.addEventListener('touchmove', pinchZoom, true);
+    board.addEventListener('touchmove', touchAction, true);
     board.addEventListener('touchend', reset, true);
 
     // return the action instance 
@@ -250,28 +251,30 @@ async function displayKeyboard(actionInstance) {
     } else {
         console.log('touch');
         const keydown = actionInstance.keydown.bind(actionInstance);
-        const handleEvent = (evt) => keydown(extractKeyEvent(evt));
+        const handleKeyEvent = (evt) => {
+            evt.target.addEventListener('animationend', toggleKeyPressClass, true);
+            keydown(extractKeyEvent(evt));
+        }
 
         Promise.resolve(createKeys())
             .then((_) => {
                 // Add crossword keyboard Events for touch devices
                 if (window.PointerEvent) {
                     // Add Pointer Event Listener                    
-                    keyboard.addEventListener('pointerdown', handleEvent, true);
+                    keyboard.addEventListener('pointerdown', handleKeyEvent, true);
                 } else {
                     // add Touch Event Listener
-                    keyboard.addEventListener('touchstart', handleEvent, true);
-                    keyboard.addEventListener('mousedown', handleEvent, true);
-                }
-
-                if (!actionInstance.selected) {
-                    const cell = document.querySelector('#cell-id-0');
-                    cell.dispatchEvent(new Event(createUserAction(), { bubbles: true }));
-                    return;
+                    keyboard.addEventListener('touchstart', handleKeyEvent, true);
+                    keyboard.addEventListener('mousedown', handleKeyEvent, true);
                 }
 
             }).catch(console.error);
+    }
 
+    if (!actionInstance.selected) {
+        const cell = document.querySelector('#cell-id-0');
+        cell.dispatchEvent(new Event(createUserAction(), { bubbles: true }));
+        return;
     }
 
 

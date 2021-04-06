@@ -20,9 +20,19 @@ export class Action {
         const cells = [...document.querySelectorAll('svg [id*="cell-id"]')];
         this.activeCells = cells.filter(not(isBlackCell));
 
+        // handle Multi-Touch events for devices that support PointerEvents
+        this.pointerCaches = {
+            'pointerdown': []
+        };
+        this.handlePointerUp;
+        this.movePending = false;
+
+
         this.zoomStart;
         this.zoomLevel = 1;
         this.zoomPending = false;
+        this.zoomInLimit = 3;
+        this.zoomOutLimit = 0.6;
 
         this.initialTouch;
         this.lastHoldPosition = [0, 0];
@@ -137,14 +147,57 @@ export class Action {
     }
 
     activate(evt) {
-        // don't hear zooming
+
+        evt.preventDefault();
+
+        // prevent cell activation when we have multi-touch
+        // // https://developer.mozilla.org/en-US/docs/Web/API/Pointer_events/Multi-touch_interaction#pointer_down
+
+        // if the device doesn't support PointerEvents, then we are listening to touches
+        // In this case we don't want to listen to zooming
         if (evt.touches && evt.touches.length == 2) {
             return;
         }
-        evt.preventDefault();
-        const el = document.getElementById(evt.target.id);
+
+
+        // synthetic event for initial highlighting
+        if (!evt.touches && !evt.pointerType) {
+            // synthetic event
+            this.handlePointerEvent(evt);
+            return;
+        }
+
+        // Handle MULTI-TOUCH event In case the device supports Pointer Events (we have set the PointerDown event in main.mjs)
+        if (this.pointerCaches[evt.type].length) {
+            this.clearCache(evt.type);
+            return;
+        }
+
+
+        // non - synthetic events
+        this.pushEvent(evt);
+
+        this.handlePointerUp = this.handlePointerEvent.bind(this, evt);
+
+        evt.target.addEventListener('pointerup', this.handlePointerUp, true);
+
+    }
+
+
+    // function overloading for pointerupEvent
+    handlePointerEvent(pointerdownEvent, pointerupEvent) {
+
+        const el = document.getElementById(pointerdownEvent.target.id);
 
         if (el && el.id.includes('cell') && not(isBlackCell)(el)) {
+
+            if (pointerupEvent) { // If not synthetic event
+                this.clearCache(pointerdownEvent.type);
+            }
+
+            if (this.rafPending) {
+                return;
+            }
 
             // doubleclicking to change direction
             if (this.selected && el.id == this.selected.id) {
@@ -153,21 +206,15 @@ export class Action {
             }
 
             this.selected = el;
-
-            if (this.rafPending) {
-                return;
-            }
-
             this.rafPending = true;
 
-            const updateCellView = this.updateCellView.bind(this);
+            const updateCellView = this.updateCellView.bind(this, pointerdownEvent);
             window.requestAnimationFrame(updateCellView);
+            // allow next activation
         }
-
     }
 
-    updateCellView() {
-        // console.log(this);
+    updateCellView(evt) {
 
         if (!this.rafPending) {
             return;
@@ -180,23 +227,24 @@ export class Action {
         // const refCells = [...document.querySelectorAll(`svg [data-variable-${direction}="${selectedVariableCoords}"]`)];
         const refCells = this.activeCells.filter(cell => getCellVariable(cell, this.direction) == selectedVariableCoords);
 
-        // const selectedCellNumber = getCellNumber(this.selected);
-        // const i = Math.floor(selectedCellNumber / this.crossword.height);
-        // const j = selectedCellNumber%this.crossword.width;
-
-        // make Aria Label
-        const selectedCellCoords = getCellCoords(this.selected, this.crossword.width, this.crossword.height);
-        const selectedCellVariable = getCellVariable(this.selected, this.direction).split('-'); //selected.getAttribute(`data-variable-${direction}`).split('-');
-        const word = this.variables.find(v => Variable.isSameCell([v.i, v.j], selectedCellVariable) && v.direction == this.direction);
-        const letterIndex = word.cells.findIndex(cell => Variable.isSameCell(selectedCellCoords, cell));
-        this.activeCells.forEach(this.makeCellAriaLabel.bind(this, word, letterIndex));
-
         const notInSelectedCells = this.activeCells.filter(cell => !refCells.includes(cell));
         notInSelectedCells.forEach(fillWhite);
         refCells.forEach(fillBlue);
         fillYellow(this.selected);
 
         this.rafPending = false;
+
+        // make Aria Label
+        const prepareForArialLabel = this.prepareForArialLabel.bind(this);
+        window.requestAnimationFrame(prepareForArialLabel);
+    }
+
+    prepareForArialLabel() {
+        const selectedCellCoords = getCellCoords(this.selected, this.crossword.width, this.crossword.height);
+        const selectedCellVariable = getCellVariable(this.selected, this.direction).split('-'); //selected.getAttribute(`data-variable-${direction}`).split('-');
+        const word = this.variables.find(v => Variable.isSameCell([v.i, v.j], selectedCellVariable) && v.direction == this.direction);
+        const letterIndex = word.cells.findIndex(cell => Variable.isSameCell(selectedCellCoords, cell));
+        this.activeCells.forEach(this.makeCellAriaLabel.bind(this, word, letterIndex));
     }
 
     makeCellAriaLabel(word, letterIndex, cell) {
@@ -244,89 +292,55 @@ export class Action {
     }
 
     // zoom and touchMove events
-    pinchZoom(src, evt) {
+    touchAction(src, evt) {
+
         if (evt.cancelable) {
             evt.preventDefault();
         }
 
-        // use arrow function "this"
-        // 'src' value is used from closure,
-        // evt and zoomLevel are passed as the values they have at the moment of calling
-        const animate = () => {
-
-            if (!this.zoomPending) {
-                return;
-            }
-
-            let x, y;
-            if (this.zoomLevel == 1) {
-                x = y = 0;
-                this.lastHoldPosition = [x, y];
-            } else {
-                [x, y] = [...this.lastHoldPosition]; // if there was a move
-            }
-
-            src.style.transition = 'transform 0s ease-out 0s';
-            src.style.transform = `translate(${x}px, ${y}px) scale(${this.zoomLevel})`;
-
-            // allow next animation
-            this.zoomPending = false;
-            this.zoomStart = undefined;
-        };
+        //@TODO change? --  clear the cache for the pointerdown before this touchMove event, since we don't want to activate a cell
+        this.clearCache('pointerdown');
 
         if (evt.touches.length >= 2) {
 
             // REF: https://developers.google.com/web/fundamentals/design-and-ux/input/touch#use_requestanimationframe
-            if (this.zoomPending || this.rafPending) {
+            if (this.zoomPending || this.movePending) {
                 return;
             }
-
-            // console.log(this.zoomStart);
 
             if (!this.zoomStart) {
                 this.zoomStart = touchesDistance(...evt.touches);
                 return;
             }
-            const zoomNext = touchesDistance(...evt.touches);
 
+            const zoomNext = touchesDistance(...evt.touches);
             const change = zoomNext - this.zoomStart;
 
             // Zoom In
             if (change > 0) {
-                // reset to  1 from the miminum set to 0.8
-                // zoom in
                 this.zoomLevel += change / 10;
-
             } else {
                 // Zoom Out               
                 this.zoomLevel -= (this.zoomStart - zoomNext) / 10;
             }
 
-
-            if (this.zoomLevel > 3) {
-                this.zoomLevel = 3;
+            // set zoom limits
+            if (this.zoomLevel > this.zoomInLimit) {
+                this.zoomLevel = this.zoomInLimit;
             }
-            if (this.zoomLevel < 0.4) {
-                this.zoomLevel = 0.4;
+            if (this.zoomLevel < this.zoomOutLimit) {
+                this.zoomLevel = this.zoomOutLimit;
             }
-
-            // // prevent from zooming out when the crossword is near the edges
-            // let x, y = this.lastHoldPosition;
-            // if (((Math.abs(Math.abs(x) - window.screen.availWidth) < 100)
-            //     || (Math.abs(Math.abs(y) - window.screen.availHeight) < 450)) && this.zoomLeel < 0.6) {
-
-            //     this.zoomLevel = 0.6;
-            // }
 
             this.zoomPending = true;
-            const f = animate.bind(this);
+            const f = this.pinchZoom.bind(this, src);
             window.requestAnimationFrame(f);
 
         } else {
             // 1 finger touch = move
 
             // REF: https://developers.google.com/web/fundamentals/design-and-ux/input/touch#use_requestanimationframe
-            if (this.zoomPending || this.rafPending || this.zoomLevel == 1) {
+            if (this.zoomPending || this.movePending || this.zoomLevel == 1) {
                 return;
             }
             if (!this.initialTouch) {
@@ -338,21 +352,54 @@ export class Action {
                 const x = (this.position[0] + -(this.initialTouch[0] - nextX));
                 const y = (this.position[1] + -(this.initialTouch[1] - nextY));
 
-                const f = function () {
-                    if (!this.rafPending) {
-                        return;
-                    }
-                    src.style.transition = 'transform 0s ease-out 0s';
-                    src.style.transform = `translate(${x}px, ${y}px) scale(${this.zoomLevel})`;
-                    this.lastHoldPosition = [x, y];
-                    this.rafPending = false;
-                }.bind(this);
 
-                this.rafPending = true;
+                const f = this.touchMove.bind(this, src, x, y);
+                this.movePending = true;
                 window.requestAnimationFrame(f);
             }
 
         }
+    }
+
+    pinchZoom(src) {
+
+        if (!this.zoomPending) {
+            return;
+        }
+
+        let x, y;
+        if (this.zoomLevel == 1) {
+            x = y = 0;
+            this.lastHoldPosition = [x, y];
+        } else {
+            [x, y] = [...this.lastHoldPosition]; // if there was a move
+
+            // DO WE NEED THIS?
+            x += Math.abs(this.zoomLevel - this.zoomInLimit) < Math.abs(this.zoomLevel - this.zoomOutLimit) ? 0.5 : -0.5;
+            y += Math.abs(this.zoomLevel - this.zoomInLimit) < Math.abs(this.zoomLevel - this.zoomOutLimit) ? 0.5 : -0.5;
+            this.lastHoldPosition = [x, y];
+        }
+
+        src.style.transition = 'transform 0s ease-out 0s';
+        src.style.transform = `translate(${x}px, ${y}px) scale(${this.zoomLevel})`;
+
+        // allow next animation
+        this.zoomPending = false;
+        this.zoomStart = undefined;
+    }
+
+    touchMove(src, x, y) {
+
+        if (!this.movePending) {
+            return;
+        }
+
+        src.style.transition = 'transform 0s ease-out 0s';
+        src.style.transform = `translate(${x}px, ${y}px) scale(${this.zoomLevel})`;
+        this.lastHoldPosition = [x, y];
+
+        // allow next move
+        this.movePending = false;
     }
 
 
@@ -361,7 +408,7 @@ export class Action {
 
         this.zoomPending = false;
         this.zoomStart = undefined;
-        this.rafPending = false;
+        this.movePending = false;
 
         // update move event
         this.position = [...this.lastHoldPosition];
@@ -373,7 +420,7 @@ export class Action {
 
         if ((parseFloat(this.zoomLevel) < 1) || (2 <= parseFloat(this.zoomLevel))) {
 
-            const reset = function () {
+            const resetZoom = function () {
                 let x, y;
                 if (!this.zoomPending) {
                     return;
@@ -398,23 +445,8 @@ export class Action {
 
             }.bind(this);
 
-            if (this.zoomPending) {
-                //  THEN HANDLERS are called Asynchronously.
-                // REF: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/resolve#resolving_thenables_and_throwing_errors
-
-                const p = Promise.resolve({
-                    then: function (resolve, reject) {
-                        resolve();
-                    }
-                });
-                p.then(() => {
-                    this.zoomPending = true;
-                    window.requestAnimationFrame(reset);
-                });
-            } else {
-                this.zoomPending = true;
-                window.requestAnimationFrame(reset);
-            }
+            this.zoomPending = true;
+            window.requestAnimationFrame(resetZoom);
 
         }
 
@@ -427,20 +459,30 @@ export class Action {
         // the reset values for the translate function are relative to the original position, considered 0, no matter the x,y values
         let [resetX, resetY] = [...this.position];
 
-        if (availWidth < width) {
 
-            const reset = function () {
+        if (this.zoomLevel > 1) {
+
+            const resetMove = function () {
+
+                // if (!this.movePending) {
+                //     return;
+                // }
+
                 if (left < -(width - availWidth)) {
                     resetX = ((availWidth - width) / 2) - (10);
                 } else if (right > width) { // if we have moved from the original (right = width)
                     resetX = Math.abs(((availWidth - width) / 2)) + 10;
                 }
-                console.log(top, height, bottom, availHeight);
+
+                // console.log(top, height, bottom, availHeight);
 
                 if (bottom > height) { // if we moved down
                     resetY = Math.abs((availHeight - (keyBoardHeight + statusBarHeight) - height) / 2); //relative to the original
-                } else if (bottom < ((availHeight - keyBoardHeight) / 2)) {
-                    resetY = (height - availHeight - keyBoardHeight);
+                } // else if (bottom < (availHeight - keyBoardHeight) / 2) { // don't pass over half of the screen
+                //     resetY = (height - availHeight - keyBoardHeight);
+                // }
+                else if (top < -(height - statusBarHeight)) { // don't pass over half of the screen
+                    resetY = ((availHeight + statusBarHeight - height) / 2);
                 }
 
                 // touchEnd         
@@ -451,17 +493,47 @@ export class Action {
                 this.position = [resetX, resetY];
                 this.lastHoldPosition = [...this.position];
 
-                this.rafPending = false;
+                this.movePending = false;
 
 
             }.bind(this);
 
-            this.rafPending = true;
-            window.requestAnimationFrame(reset);
+            this.movePending = true;
+            window.requestAnimationFrame(resetMove);
 
         }
+    }
+
+
+    // hanlde Multi-Touch events for devices that support PointerEvents
+    // REF: https://developer.mozilla.org/en-US/docs/Web/API/Pointer_events/Multi-touch_interaction#miscellaneous_functions
+
+    getCache(type) {
+        // Return the cache for this event's target element
+        return this.pointerCaches[type];
+    }
+
+    pushEvent(ev) {
+        // Save this event in the target's cache
+        const cache = this.getCache(ev.type);
+        cache.push(ev);
+    }
+
+    clearCache(type) {
+        // Remove this event from the target's cache
+        let cache = this.getCache(type);
+
+        for (let i = 0; i < cache.length; i++) {
+            //@ TODO change? be careful!! remove the pointerup event for cache[pointerdown]       
+            cache[i].target.removeEventListener('pointerup', this.handlePointerUp, true);
+        }
+
+        this.pointerCaches[type] = [];
+        this.handlePointerUp = undefined;
 
     }
+
+
 
 }
 

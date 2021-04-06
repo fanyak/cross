@@ -1,5 +1,5 @@
 const qwerty = [
-    ['Q', 'W', 'E', 'R', 'T', 'Y', ' U', 'I', 'O', 'P'],
+    ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
     ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
     ['Z', 'X', 'C', 'V', 'B', 'N', 'M', '&#9003;']
 ];
@@ -28,10 +28,19 @@ export function createKeys() {
 
 export function extractKeyEvent(evt) {
     const target = evt.target;
-    let key = target.getAttribute('data-key');
+    let key = target.getAttribute('data-key') && target.getAttribute('data-key').trim();
+
     if (key == '&#9003;') {
         key = 'Backspace';
+    } else {
+        target.classList.add('pressed');
     }
+
     const { type, code, shiftKey } = evt;
     return { key, code, type, shiftKey };
+}
+
+export function toggleKeyPressClass(evt) {
+    evt.target.classList.remove('pressed');
+    evt.target.removeEventListener('animationend', toggleKeyPressClass, true);
 }

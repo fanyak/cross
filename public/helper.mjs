@@ -57,6 +57,11 @@ export function createUserAction() {
   return userAction;
 }
 
+export function createUserActionEnd(evt) {
+  const userActionEnd = evt.type.replace('down', 'up').replace('start', 'end');
+  return userActionEnd;
+}
+
 export function touchesDistance(touch1, touch2) {
   const dist = Math.hypot(
     touch1.pageX - touch2.pageX,
@@ -75,5 +80,6 @@ export function touchesCoords(touch1, touch2) {
   }
   return c1;
 }
+
 
 
