@@ -1,5 +1,5 @@
 import { Crossword, Variable } from './cross.mjs';
-import { not, createUserAction, createUserActionEnd } from './helper.mjs';
+import { not, createUserActivationAction, createUserActionEnd } from './helper.mjs';
 import { Action } from './action.mjs';
 import { createKeys, extractKeyEvent, toggleKeyPressClass } from './keyboard.mjs';
 import { Hammer } from './hammer.mjs';
@@ -53,7 +53,7 @@ function makeGrid(crossword) {
     const grid = document.createElementNS(svgNamespace, 'g');
     grid.setAttributeNS(null, 'data-group', 'grid');
 
-    // create the grid using a path element
+    // create the grid using a path element 
     const path = document.createElementNS(svgNamespace, 'path');
     let d = '';
     // create  horizontal lines
@@ -189,6 +189,7 @@ function addActions(crossword) {
     const cell = document.querySelector('#cell-id-0');
     action.cellSpace = cell.getBoundingClientRect();
 
+    // ACTIVATE CELL EVENT
     if (window.PointerEvent) {
         // Add Pointer Event Listener
         // allow click event on cell to bubble upwards to the svg 
@@ -207,7 +208,7 @@ function addActions(crossword) {
         // @ TODO replace the target check if it is out of functional elements
         if (!action.selected && evt.key == 'Tab') {
             // send the activation event to parent (svg) via the child (cell)          
-            cell.dispatchEvent(new Event(createUserAction(), { bubbles: true }));
+            cell.dispatchEvent(new Event(createUserActivationAction(), { bubbles: true }));
             return;
         }
         if (action.selected) {
@@ -216,13 +217,42 @@ function addActions(crossword) {
             // keydown({target: action.selected, id:action.selected.id, key, code, type, shiftKey});            
             keydown({ key, code, type, shiftKey });
         }
-        // uses the keyboar - remove virtual keyboard
+
+        //If a keydown event has been sent, then the user has keyboard => we can remove virtual keyboard and touch
         keyboard.classList.remove('touch');
         useTouch = false;
+
     }, true);
 
-    board.addEventListener('touchmove', touchAction, true);
+    // treat move event as initial touch
+
+    board.addEventListener('touchmove', touchAction, true);// for zooming
     board.addEventListener('touchend', reset, true);
+
+    // hanlde Move Actions for Pens on touch-enabled screens
+    if (window.PointerEvent && useTouch) {
+
+        // Add Pointer Event Listener for touch screens AND input devices other than touch (like pen)
+        const penEventHandler = (evt) => {
+
+            // https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/pointerType - touch, mouse, pen
+            if (evt.pointerType == 'pen') {
+
+                if (evt.type == 'pointermove') {
+                    evt.target.setPointerCapture(evt.pointerId);
+                    touchAction(evt);
+                }
+                if (evt.type == 'pointerup') {
+                    evt.target.releasePointerCapture(evt.pointerId);
+                    reset(evt);
+                }
+
+            }
+        }
+
+        board.addEventListener('pointermove', penEventHandler, true);
+        board.addEventListener('pointerup', penEventHandler, true);
+    }
 
     // return the action instance 
     return action;
@@ -236,35 +266,41 @@ async function displayKeyboard(actionInstance) {
     // Solution for Touch Enabled Devices that also have a physical keyboard connected    
     // Navigator.keyboard API works for DESKTOP Chrome, Edge, Opera  
 
+    // AWAIT to find if there is a keyboard
     // Check if it is touch enabled AND is Desktop that supports the Keyboard API
-    if (useTouch && navigator.keyboard) { // If the property is supported by the browser
+    if (useTouch && navigator.keyboard) {
+        // If the'navigator.keyboard' property is supported by the browser
         useTouch = await navigator.keyboard.getLayoutMap()
             .then(map => !Boolean(map.size)); // uses keyboard
     }
-
-    //  window.screen.width <=600
-
 
     if (!useTouch) {
         // browser supports multi-touch
         keyboard.classList.remove('touch');
     } else {
         console.log('touch');
+
+        // Manage keyDown events on the virtual keyboard        
         const keydown = actionInstance.keydown.bind(actionInstance);
+
         const handleKeyEvent = (evt) => {
+
+            // handle virtual keyboar animations
             evt.target.addEventListener('animationend', toggleKeyPressClass, true);
+
             keydown(extractKeyEvent(evt));
         }
 
         Promise.resolve(createKeys())
             .then((_) => {
-                // Add crossword keyboard Events for touch devices
+                // Add crossword keyboard Events for touch devices that don't have keyboard
                 if (window.PointerEvent) {
                     // Add Pointer Event Listener                    
                     keyboard.addEventListener('pointerdown', handleKeyEvent, true);
                 } else {
                     // add Touch Event Listener
                     keyboard.addEventListener('touchstart', handleKeyEvent, true);
+                    // might be using a mouse with a touch enambled device that doesn't use a keyboard? eg. Microsoft surface?
                     keyboard.addEventListener('mousedown', handleKeyEvent, true);
                 }
 
@@ -273,7 +309,7 @@ async function displayKeyboard(actionInstance) {
 
     if (!actionInstance.selected) {
         const cell = document.querySelector('#cell-id-0');
-        cell.dispatchEvent(new Event(createUserAction(), { bubbles: true }));
+        cell.dispatchEvent(new Event(createUserActivationAction(), { bubbles: true }));
         return;
     }
 

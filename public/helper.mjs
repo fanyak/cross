@@ -47,7 +47,7 @@ export function not(fn) {
 }
 
 
-export function createUserAction() {
+export function createUserActivationAction() {
   let userAction = '';
   if (window.PointerEvent) {
     userAction = 'pointerdown';
@@ -69,16 +69,28 @@ export function touchesDistance(touch1, touch2) {
   return dist;
 }
 
-export function touchesCoords(touch1, touch2) {
-  let c1, c2;
+export function getTouchCoordsFromEvent(evt) {
+  // let c1, c2;
 
-  // use touch.clientX, touch.clientY
-  // REF: https://developer.mozilla.org/en-US/docs/Web/API/Touch/clientX#example
-  c1 = [touch1.clientX, touch1.clientY];
-  if (touch2) {
-    c2 = [touch2.clientX, touch2.clientY];
+  // // use touch.clientX, touch.clientY
+  // // REF: https://developer.mozilla.org/en-US/docs/Web/API/Touch/clientX#example
+  // c1 = [touch1.clientX, touch1.clientY];
+  // if (touch2) {
+  //   c2 = [touch2.clientX, touch2.clientY];
+  // }
+  // return c1;
+
+  let point = [];
+
+  if (evt.targetTouches) {
+    // Prefer Touch Events
+    point = [evt.targetTouches[0].clientX, evt.targetTouches[0].clientY];
+  } else {
+    // Either Mouse event or Pointer Event
+    point = [evt.clientX, evt.clientY];
   }
-  return c1;
+
+  return point;
 }
 
 
