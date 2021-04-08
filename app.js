@@ -6,6 +6,8 @@ const { join } = require('path');
 
 const gridRouter = require('./src/resources/grid.router.js');
 const vocabRouter = require('./src/resources/vocab.router.js');
+const solutionRouter = require('./src/resources/solution.router.js');
+const cluesRouter = require('./src/resources/clues.router');
 
 const app = express();
 const port = process.env.port || 3000;
@@ -28,6 +30,8 @@ app.use(fileServer);
 
 app.use('/api/grids/', gridRouter);
 app.use('/api/words/', vocabRouter);
+app.use('/api/solutions/', solutionRouter);
+app.use('/api/clues/', cluesRouter);
 
 
 app.use((req, res) => res.sendFile(`${WEB_PATH}/index.html`));

@@ -1,11 +1,12 @@
 import { Crossword, Variable } from './cross.mjs';
-import { not, createUserActivationAction, createUserActionEnd } from './helper.mjs';
+import { not, createUserActivationAction } from './helper.mjs';
 import { Action } from './action.mjs';
 import { createKeys, extractKeyEvent, toggleKeyPressClass } from './keyboard.mjs';
-import { Hammer } from './hammer.mjs';
 
 const crosswordDimentions = [15, 15];
-const files = ['api/grids/1', 'api/words/'];
+
+const gridFiles = ['api/grids/7', 'api/words/',];
+const solutionFiles = ['api/solutions/7', 'api/clues/7'];
 // @TODO how dow we choose size?
 const cellSize = 33;
 const gridSpan = 495;
@@ -32,9 +33,10 @@ const keyboard = document.querySelector('.keyboard');
 // must change if there is touch BUT also a physical keyboard
 
 let useTouch = navigator.maxTouchPoints > 0;
-let hammertime;
+let checkedKeyboardAPI = false;
 
-Promise.all(files.map(file => fetch(file)))
+//@TODO we don't need the vocab file for displaying a generated crossword
+Promise.all(gridFiles.map(file => fetch(file)))
     .then(responses => Promise.all(responses.map(response => response.json())))
     .then(([structure, words]) => new Crossword(structure, words, ...crosswordDimentions))
     .then((crossword) => makeCells(crossword))
@@ -43,6 +45,17 @@ Promise.all(files.map(file => fetch(file)))
     .then((actionInstance) => displayKeyboard(actionInstance))
     .catch((err) => {
         console.log(err); // @ TODO handle the error
+    })
+    .then((actionInstance) =>
+        Promise.all(solutionFiles.map(file => fetch(file)))
+            // create clusure for actionInstance
+            .then(responses => Promise.all(responses.map(response => response.json())))
+            .then(data => getClues(data))
+            .then((clues) => displayClues(clues))
+
+    )
+    .catch((err) => {
+        console.log(err);
     });
 
 // REF: https://www.motiontricks.com/creating-dynamic-svg-elements-with-javascript/
@@ -150,10 +163,11 @@ function makeCells(crossword) {
                 cell.setAttributeNS(null, 'x', (j * cellSize) + padding); // account for stroke width of the grid
                 cell.setAttributeNS(null, 'y', (i * cellSize) + padding);
                 cell.setAttributeNS(null, 'fill', '#fff'); // should be transparent? => fill = none
-                const isStartOfWord = variables.find(v => v.i == i && v.j == j);
-                if (isStartOfWord) {
+                //@TODO: precalculate this??? ([direction[counter]: ])
+                const startOfWordVariable = variables.find(v => v.i == i && v.j == j);
+                if (startOfWordVariable) {
                     wordIndex.textContent = counter;
-                    startOfWordCells.push({ cell, direction: isStartOfWord.direction });
+                    startOfWordCells.push({ cell, startOfWordVariable });
                     counter++;
                 }
             }
@@ -270,14 +284,16 @@ async function displayKeyboard(actionInstance) {
     // Check if it is touch enabled AND is Desktop that supports the Keyboard API
     if (useTouch && navigator.keyboard) {
         // If the'navigator.keyboard' property is supported by the browser
-        useTouch = await navigator.keyboard.getLayoutMap()
+        useTouch = checkedKeyboardAPI ? useTouch : await navigator.keyboard.getLayoutMap()
             .then(map => !Boolean(map.size)); // uses keyboard
+        checkedKeyboardAPI = true;
     }
 
     if (!useTouch) {
         // browser supports multi-touch
         keyboard.classList.remove('touch');
     } else {
+        keyboard.classList.add('touch');
         console.log('touch');
 
         // Manage keyDown events on the virtual keyboard        
@@ -310,11 +326,59 @@ async function displayKeyboard(actionInstance) {
     if (!actionInstance.selected) {
         const cell = document.querySelector('#cell-id-0');
         cell.dispatchEvent(new Event(createUserActivationAction(), { bubbles: true }));
-        return;
     }
 
+    return actionInstance;
 
 }
 
+// @TODO Move to generation files!!!!!!!!!!!!!! 
+function getClues([{ solution }, { clues }]) {
+    //console.log(solution, clues)
+    const allClues = { 'across': {}, 'down': {} };
+    for (let keyVariable in solution) {
+        // convert to javascript class from json string
+        const classFunction = new Function(`Variable = ${Variable}; return new ${keyVariable}; `)
+        const variable = classFunction();
+        const clue = solution[keyVariable];
+        const wordIndex = startOfWordCells.findIndex(({ startOfWordVariable }) =>
+            startOfWordVariable.i == variable.i && startOfWordVariable.j == variable.j)
+        allClues[variable.direction][wordIndex + 1] = { [clue]: clues[clue] };
+    };
+    return allClues;
+}
 
+function displayClues(clues) {
+    console.log(clues);
+    const section = document.querySelector('section[aria-label="puzzle clues"]');
+    const sectionDiv = document.querySelector('section .scrolls');
 
+    for (direction in clues) {
+
+        const div = document.createElement('div');
+        const ol = document.createElement('ol');
+        const header = document.createElement('h4')
+        const headerTitle = document.createTextNode(`${direction}`);
+        header.appendChild(headerTitle);
+        div.appendChild(header);
+
+        for (let clueNumber in clues[direction]) {
+
+            const li = document.createElement('li');
+            const numberCell = document.createElement('span');
+            const numberText = document.createTextNode(`${clueNumber}`);
+            numberCell.appendChild(numberText);
+            li.appendChild(numberCell);
+            const clueCell = document.createElement('span');
+            const obj = clues[direction][clueNumber];
+            const clueText = document.createTextNode(`${Object.values(obj)[0]}`);
+            clueCell.appendChild(clueText);
+            li.appendChild(clueCell)
+
+            ol.appendChild(li);
+            div.appendChild(ol)
+        }
+        sectionDiv.appendChild(div)
+        section.removeAttribute('hidden');
+    }
+}

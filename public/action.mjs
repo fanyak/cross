@@ -126,7 +126,6 @@ export class Action {
             const currentIndex = this.startOfWordCells.findIndex(({ cell }) => getCellVariable(cell, this.direction) == getCellVariable(target, this.direction));
             if (evt.shiftKey) {
                 // go back 1 word
-                // next = startOfWordCellsReversed.find(({cell}) => getCellNumber(cell) < cellNumber);
                 const anchor = currentIndex == 0 ? this.startOfWordCells.length : currentIndex;
                 next = this.startOfWordCells[anchor - 1];
 
@@ -137,7 +136,7 @@ export class Action {
                 next = this.startOfWordCells[anchor + 1];
             }
             if (next) {
-                this.direction = next.direction;
+                this.direction = next.startOfWordVariable.direction;
                 // synchronous dispatch : https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/dispatchEvent
                 // :dispatchEvent() invokes event handlers synchronously
 
@@ -313,7 +312,7 @@ export class Action {
         this.clearCache('pointerdown');
 
         // don't Move or PinchZoom for large devices
-        if (window.screen.availWidth > 900) {
+        if (window.screen.availWidth > 900) { //@TODO Ipad PRo?
             return;
         }
 
