@@ -19,7 +19,8 @@ const wordIndexPaddingLeft = padding / 1.5;
 const wordIndexPaddingTop = padding * 3.5;
 
 
-let direction = 'across'; // initial direction setting
+// let direction = 'across'; // initial direction setting
+//startOfWordCells: Array of Objects: {cell, startOfWordVariable }[]
 const startOfWordCells = []; // this is in the order of the word indices for the display cells
 
 const svgNamespace = 'http://www.w3.org/2000/svg';
@@ -51,8 +52,8 @@ Promise.all(gridFiles.map(file => fetch(file)))
             // create clusure for actionInstance
             .then(responses => Promise.all(responses.map(response => response.json())))
             .then(data => getClues(data))
-            .then((clues) => displayClues(clues))
-
+            .then(clues => displayClues(clues, actionInstance))
+            .then((actionInstance) => initializeView(actionInstance))
     )
     .catch((err) => {
         console.log(err);
@@ -192,7 +193,7 @@ function makeCells(crossword) {
 }
 
 function addActions(crossword) {
-
+    const direction = startOfWordCells[0].startOfWordVariable.direction;
     const action = new Action(crossword, direction, startOfWordCells);
     const activate = action.activate.bind(action);
     const keydown = action.keydown.bind(action);
@@ -323,11 +324,6 @@ async function displayKeyboard(actionInstance) {
             }).catch(console.error);
     }
 
-    if (!actionInstance.selected) {
-        const cell = document.querySelector('#cell-id-0');
-        cell.dispatchEvent(new Event(createUserActivationAction(), { bubbles: true }));
-    }
-
     return actionInstance;
 
 }
@@ -348,37 +344,123 @@ function getClues([{ solution }, { clues }]) {
     return allClues;
 }
 
-function displayClues(clues) {
-    console.log(clues);
+function displayClues(clues, actionInstance) {
+    console.log(clues)
+    if (!useTouch) {
+        displayDesktopClues(clues, actionInstance);
+    } else {
+        displayTouchClues(clues, actionInstance);
+    }
+
+    return actionInstance;
+}
+
+function createCluesList(clues, direction) {
+    const ol = document.createElement('ol');
+    ol.setAttribute('data-dir', direction);
+
+    for (let clueNumber in clues[direction]) {
+
+        const li = document.createElement('li');
+        li.setAttribute('data-li-clue-index', `${clueNumber}`);
+        const numberCell = document.createElement('span');
+        const numberText = document.createTextNode(`${clueNumber}`);
+        numberCell.appendChild(numberText);
+        li.appendChild(numberCell);
+        const clueCell = document.createElement('span');
+        const obj = clues[direction][clueNumber];
+        const clueText = document.createTextNode(`${Object.values(obj)[0]}`);
+        clueCell.setAttribute('data-clue-index', `${clueNumber}`);
+        numberCell.setAttribute('data-clue-index', `${clueNumber}`);
+        clueCell.appendChild(clueText);
+        li.appendChild(clueCell)
+        ol.appendChild(li);
+    }
+    return ol;
+}
+
+function activateFromCluesList(evt, parent, actionInstance) {
+    const target = evt.target;
+    const clueNumber = target.getAttribute('data-clue-index');
+
+    if (!clueNumber) {
+        return;
+    }
+
+    // @TODO change directly the actionInstace directin from here??
+    const direction = parent.getAttribute('data-dir');
+
+    if (actionInstance.selectedWord && actionInstance.selectedWord == `${direction}-${clueNumber}`) {
+        return;
+    }
+
+    actionInstance.updateCluesList(clueNumber, direction, true);
+}
+
+function displayDesktopClues(clues, actionInstance) {
     const section = document.querySelector('section[aria-label="puzzle clues"]');
     const sectionDiv = document.querySelector('section .scrolls');
+    const activationFunction = function (evt) {
+        const parentElement = this;
+        activateFromCluesList(evt, parentElement, actionInstance);
+    };
 
-    for (direction in clues) {
-
+    for (let direction in clues) {
         const div = document.createElement('div');
-        const ol = document.createElement('ol');
         const header = document.createElement('h4')
         const headerTitle = document.createTextNode(`${direction}`);
         header.appendChild(headerTitle);
         div.appendChild(header);
 
-        for (let clueNumber in clues[direction]) {
+        const list = createCluesList(clues, direction);
 
-            const li = document.createElement('li');
-            const numberCell = document.createElement('span');
-            const numberText = document.createTextNode(`${clueNumber}`);
-            numberCell.appendChild(numberText);
-            li.appendChild(numberCell);
-            const clueCell = document.createElement('span');
-            const obj = clues[direction][clueNumber];
-            const clueText = document.createTextNode(`${Object.values(obj)[0]}`);
-            clueCell.appendChild(clueText);
-            li.appendChild(clueCell)
+        div.appendChild(list);
+        sectionDiv.appendChild(div);
 
-            ol.appendChild(li);
-            div.appendChild(ol)
+        if (window.PointerEvent) {
+            list.addEventListener('pointerdown', activationFunction, true);
+        } else {
+            list.addEventListener('touchstart', activationFunction, true);
+            list.addEventListener('mousedown', activationFunction, true)
         }
-        sectionDiv.appendChild(div)
-        section.removeAttribute('hidden');
+    }
+
+    sectionDiv.removeAttribute('hidden');
+    section.removeAttribute('hidden');
+}
+
+function displayTouchClues(clues, actionInstance) {
+    const cluesDiv = document.querySelector('.touchClues');
+
+    // cluesDiv.setAttribute('data-dir', actionInstance.direction);
+    // cluesText.setAttribute('data-clue-index', 1);
+
+    for (let direction in clues) {
+        const div = document.createElement('div');
+      
+        const list = createCluesList(clues, direction);
+
+        div.appendChild(list);
+        cluesDiv.appendChild(div);
+
+        if (window.PointerEvent) {
+            list.addEventListener('pointerdown', activationFunction, true);
+        } else {
+            list.addEventListener('touchstart', activationFunction, true);
+            list.addEventListener('mousedown', activationFunction, true)
+        }
+    }
+
+    cluesDiv.classList.add('touch');
+
+}
+
+
+function initializeView(actionInstance) {
+    // set initial active cell
+    if (!actionInstance.selected) {
+        const [firstWord] = startOfWordCells;
+        firstWord.cell.dispatchEvent(new Event(createUserActivationAction(), { bubbles: true }));
     }
 }
+

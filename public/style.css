@@ -36,6 +36,13 @@
     height: 60vh;
   }
 
+  /* @ TODO  should this be onlyt in @media bellow? */
+  .scrolls ol {   
+    height: calc(100% - 30px);
+    overflow-y: scroll;
+    list-style-type: none;
+  }
+
     
  @media (min-width: 900px) {
 
@@ -61,6 +68,10 @@
     flex-basis: 50%;
   }
 
+  section[aria-label="puzzle clues"] {
+    flex-basis: 50%;
+  }
+
   section[aria-label = "puzzle clues"] .scrolls {
     display: flex;
     justify-content:space-around;
@@ -72,14 +83,17 @@
   }
 
   .scrolls ol {
-    /* font-size: 10px; */
+    font-size: 1vw;
     height: calc(100% - 30px);
     overflow-y: scroll;
-    list-style-type: none;
+    list-style-type: none;    
+    padding-inline-start: 0;
+    padding-left: 0
+
   }
   .scrolls ol::-webkit-scrollbar {
     width: 12px;
-    height: 5px;
+    /* height: 5px; */
     border-radius: 6px;
     background-color:#ddd; /* or add it to the track */
   }
@@ -87,100 +101,114 @@
   .scrolls ol::-webkit-scrollbar-thumb {
     background: #aaa ;
     border-radius: 5px;
-
   }
-
-  .scrolls ol li {
-    border-left: 10px solid transparent;
-    cursor: pointer;
-    display: flex;
-    padding: 5px 1px;
-  }
-  .scrolls  h4 {
-    text-transform: uppercase;
-  }
-  .scrolls ol li span {
-    line-height: 1.4;
-    margin-right: 5px;
-  }
-  .scrolls ol li > span:first-child {
-    font-weight: bold;
-    width: 24px;
-  }
-
-  .scrolls ol li > span:nth-child(2) {
-    margin-left: 5px; 
-  } 
 
 } 
 
+
+.scrolls ol li {
+  border-left: 10px solid transparent;
+  cursor: pointer;
+  display: flex;
+}
+.scrolls  h4 {
+  text-transform: uppercase;
+}
+
+.scrolls ol li.activeClue {
+  border-left: 10px solid transparent;
+  cursor: pointer;
+  display: flex;
+  background-color: lightblue;
+}
+
+.scrolls  h4 {
+  text-transform: uppercase;
+}
+.scrolls ol li span {
+  line-height: 1.4;
+  margin-right: 5px;
+  padding: 5px 1px;
+  background: transparent;
+}
+
+.scrolls ol li > span:first-child {
+  font-weight: bold;
+  width: 24px;
+}
+
+.scrolls ol li > span:nth-child(2) {
+  /* margin-left: 5px;  */
+  width: calc(100% - 24px);
+} 
+
+.board {
+  /* display:flex;
+  justify-content: center; */
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  right: 1px;
+  bottom: 1px;
+  box-sizing: border-box;
+  transition: transform 0s ease-in-out 0s;  /* name duration transition function delay */
+  transform: translate(0px, 0px) scale(1);
+  touch-action: none; /*Disable browser handling of all panning and zooming gestures.*/
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+}
+
+  
+@media (min-width: 900px) {
   .board {
-    /* display:flex;
-    justify-content: center; */
+    /* justify-content: space-between; */
     position: absolute;
-    top: 1px;
-    left: 1px;
-    right: 1px;
-    bottom: 1px;
-    box-sizing: border-box;
-    transition: transform 0s ease-in-out 0s;  /* name duration transition function delay */
-    transform: translate(0px, 0px) scale(1);
-    touch-action: none; /*Disable browser handling of all panning and zooming gestures.*/
-    user-select: none;
-    -webkit-user-drag: none;
-    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
-  }
-
+    top: 0;
+    left:0;
+    right: unset;
+    bottom: unset;
     
-  @media (min-width: 900px) {
-    .board {
-      /* justify-content: space-between; */
-      position: absolute;
-      top: 0;
-      left:0;
-      right: unset;
-      bottom: unset;
-     
-    }
   }
+}
 
-  /* mobile first */
+/* mobile first */
+svg {
+  width: 100%;
+  max-width: 100%; 
+  height: 100%;
+  user-select: none;
+}
+  
+svg text {    
+    font-weight: "100";
+    font-family: 'inherit';
+    pointer-events: none;
+}
+
+svg rect {
+  -webkit-tap-highlight-color: transparent;     
+}
+
+svg path {
+  user-select: none;
+}
+
+svg:focus, svg rect:focus {
+  outline: none;
+}
+
+svg rect::-moz-focus-inner {
+  outline: none;
+}
+
+@media (min-width: 900px) {
   svg {
-    width: 100%;
-    max-width: 100%; 
-    height: 100%;
-    user-select: none;
+    /* width: 100%; */
+    width: 501px;
+    height: 501px;
   }
-   
-  svg text {    
-      font-weight: "100";
-      font-family: 'inherit';
-      pointer-events: none;
-  }
-
-  svg rect {
-    -webkit-tap-highlight-color: transparent;     
-  }
-
-  svg path {
-    user-select: none;
-  }
-
-  svg:focus, svg rect:focus {
-    outline: none;
-  }
-
-  svg rect::-moz-focus-inner {
-    outline: none;
-  }
-
-  @media (min-width: 900px) {
-    svg {
-     /* width: 100%; */
-     width: 501px;
-     height: 501px;
-    }
-  }
+}
 
 
 .hidden {
@@ -207,7 +235,7 @@
   bottom:0;
   left:0;
   z-index:1;
-  padding: 8px 0;
+  padding: 2px 0;
   background-color: lightgrey;
 
 }
@@ -273,3 +301,37 @@
     top: -20%;
   }
 }
+
+
+.touchClues {
+  display: none;
+}
+
+.touchClues.touch {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  height: 50px;
+  z-index:1;
+  background-color:lightblue;
+}
+
+.touchClues.touch span.chevron {
+  color: white;
+  font-size: 12.5vw; 
+}
+
+.touchClues.touch span.chevron.left {
+  margin-left: 8px;
+}
+
+.touchClues.touch span.chevron.right {
+  margin-right: 8px;
+}
+
+.touchClues.touch ol li {
+  display:inline;
+}
+
+

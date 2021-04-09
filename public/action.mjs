@@ -39,6 +39,9 @@ export class Action {
         this.initialTouch;
         this.lastHoldPosition = [0, 0];
         this.position = [0, 0];
+
+
+        this.selectedWord;
     }
 
 
@@ -208,8 +211,8 @@ export class Action {
                 return;
             }
 
-            // doubleclicking to change direction
-            if (this.selected && el.id == this.selected.id) {
+            // doubleclicking to change direction (if not synthetic event (clicked from the list of clues))
+            if (endEvent && this.selected && el.id == this.selected.id) {
                 this.changeDirection();
                 return;
             }
@@ -223,6 +226,7 @@ export class Action {
         }
     }
 
+    // @TODO - cache this in order not to search every time
     updateCellView(evt) {
 
         if (!this.rafPending) {
@@ -232,8 +236,7 @@ export class Action {
         // get the coords of the selected = variable
         const selectedVariableCoords = getCellVariable(this.selected, this.direction); // selected.getAttribute(`data-variable-${direction}`);           
 
-        // get the cells that belong to the same variable as the selected         
-        // const refCells = [...document.querySelectorAll(`svg [data-variable-${direction}="${selectedVariableCoords}"]`)];
+        // get the cells that belong to the same variable as the selected  
         const refCells = this.activeCells.filter(cell => getCellVariable(cell, this.direction) == selectedVariableCoords);
 
         const notInSelectedCells = this.activeCells.filter(cell => !refCells.includes(cell));
@@ -244,24 +247,29 @@ export class Action {
         this.rafPending = false;
 
         // make Aria Label
-        const prepareForArialLabel = this.prepareForArialLabel.bind(this);
-        window.requestAnimationFrame(prepareForArialLabel);
+        const calculateWordIndexAndUpdate = this.calculateWordIndexAndUpdate.bind(this);
+        // @ TODO - Move this to a Worker?
+        window.requestAnimationFrame(calculateWordIndexAndUpdate);
     }
 
-    prepareForArialLabel() {
+    calculateWordIndexAndUpdate() {
         const selectedCellCoords = getCellCoords(this.selected, this.crossword.width, this.crossword.height);
         const selectedCellVariable = getCellVariable(this.selected, this.direction).split('-'); //selected.getAttribute(`data-variable-${direction}`).split('-');
         const word = this.variables.find(v => Variable.isSameCell([v.i, v.j], selectedCellVariable) && v.direction == this.direction);
         const letterIndex = word.cells.findIndex(cell => Variable.isSameCell(selectedCellCoords, cell));
-        // @ TODO - Move this to a Worker?
-        this.activeCells.forEach(this.makeCellAriaLabel.bind(this, word, letterIndex));
+
+        const wordNumber = this.startOfWordCells.findIndex(({ cell }) => getCellVariable(cell, this.direction) == getCellVariable(this.selected, this.direction));
+        const clueNumber = wordNumber + 1;
+
+        // make updates
+        this.updateCluesList(clueNumber, this.direction);
+        this.activeCells.forEach(this.makeCellAriaLabel.bind(this, word, letterIndex, clueNumber));
     }
 
-    makeCellAriaLabel(word, letterIndex, cell) {
+    makeCellAriaLabel(word, letterIndex, clueNumber, cell) {
         const wordLengthDesc = `${word.length} letters`;
         const prefix = `${this.direction[0]}`.toUpperCase();
-        const wordNumber = this.startOfWordCells.findIndex(({ cell }) => getCellVariable(cell, this.direction) == getCellVariable(this.selected, this.direction));
-        cell.setAttributeNS(null, 'aria-label', `${prefix}${wordNumber + 1}: clue, Answer: ${wordLengthDesc}, Letter ${letterIndex + 1}`);
+        cell.setAttributeNS(null, 'aria-label', `${prefix}${clueNumber}: clue, Answer: ${wordLengthDesc}, Letter ${letterIndex + 1}`);
     }
 
     changeActiveCell(cellNumber, diff) {
@@ -558,6 +566,33 @@ export class Action {
         this.pointerCaches[type] = [];
         this.handleActivationOnEnd = undefined;
 
+    }
+
+
+    updateCluesList(clueNumber, direction, fromCluesList = false) {
+
+        // remove previously selected style
+        if (this.selectedWord) {
+            // no new change
+            const [previousDir, previousNum] = this.selectedWord.split('-');
+            if (previousDir == direction && previousNum == clueNumber) {
+                return;
+            }
+            document.querySelector(`[data-dir='${previousDir}'] [data-li-clue-index ='${previousNum}']`).classList.remove('activeClue');
+        }
+
+        // make the change
+        this.direction = direction; //@TODO change the way we do this
+        this.selectedWord = `${this.direction}-${clueNumber}`;
+        const active = document.querySelector(`[data-dir='${this.direction}'] [data-li-clue-index ='${clueNumber}']`);
+        active.classList.add('activeClue');
+
+        if (fromCluesList) {
+            const gridCell = this.startOfWordCells[clueNumber - 1].cell;
+            gridCell.dispatchEvent(new Event(createUserActivationAction(), { bubbles: true })); // first send the event to the svg
+        } else {
+            active.scrollIntoView();
+        }
     }
 
 }
