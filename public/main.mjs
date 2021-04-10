@@ -19,7 +19,6 @@ const wordIndexPaddingLeft = padding / 1.5;
 const wordIndexPaddingTop = padding * 3.5;
 
 
-// let direction = 'across'; // initial direction setting
 //startOfWordCells: Array of Objects: {cell, startOfWordVariable }[]
 const startOfWordCells = []; // this is in the order of the word indices for the display cells
 
@@ -364,7 +363,12 @@ function createCluesList(clues, direction) {
         const li = document.createElement('li');
         li.setAttribute('data-li-clue-index', `${clueNumber}`);
         const numberCell = document.createElement('span');
-        const numberText = document.createTextNode(`${clueNumber}`);
+        let numberText
+        if (useTouch) {
+            numberText = document.createTextNode(`${clueNumber}${direction[0]}`);
+        } else {
+            numberText = document.createTextNode(`${clueNumber}`);
+        }
         numberCell.appendChild(numberText);
         li.appendChild(numberCell);
         const clueCell = document.createElement('span');
@@ -431,17 +435,20 @@ function displayDesktopClues(clues, actionInstance) {
 
 function displayTouchClues(clues, actionInstance) {
     const cluesDiv = document.querySelector('.touchClues');
+    const cluesText = document.querySelector('.clueText .container');
 
     // cluesDiv.setAttribute('data-dir', actionInstance.direction);
     // cluesText.setAttribute('data-clue-index', 1);
 
+    const activationFunction = function (evt) {
+        const parentElement = this;
+        activateFromCluesList(evt, parentElement, actionInstance);
+    };
+
     for (let direction in clues) {
-        const div = document.createElement('div');
-      
         const list = createCluesList(clues, direction);
 
-        div.appendChild(list);
-        cluesDiv.appendChild(div);
+        cluesText.appendChild(list);
 
         if (window.PointerEvent) {
             list.addEventListener('pointerdown', activationFunction, true);
