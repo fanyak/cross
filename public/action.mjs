@@ -48,7 +48,6 @@ export class Action {
     // Receives a keyboard Event or a synthesized event for direct call
     // synthesized event: {key, code, type, shiftKey}
     keydown(evt) {
-        //console.log(this);
 
         // if not manually sent from an event on the body 
         if (evt instanceof Event) {
@@ -134,7 +133,6 @@ export class Action {
 
             } else {
                 // go to next word
-                // next = startOfWordCells.find(({cell}) => getCellNumber(cell) > cellNumber);
                 const anchor = currentIndex == this.startOfWordCells.length - 1 ? -1 : currentIndex;
                 next = this.startOfWordCells[anchor + 1];
             }
@@ -239,8 +237,10 @@ export class Action {
         // get the cells that belong to the same variable as the selected  
         const refCells = this.activeCells.filter(cell => getCellVariable(cell, this.direction) == selectedVariableCoords);
 
+        // @TODO/ cache the previously selected cells  to deselect them instead of updating all the activecells
         const notInSelectedCells = this.activeCells.filter(cell => !refCells.includes(cell));
         notInSelectedCells.forEach(fillWhite);
+
         refCells.forEach(fillBlue);
         fillYellow(this.selected);
 

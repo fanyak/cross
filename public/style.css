@@ -26,23 +26,29 @@
     display:flex;
     flex-direction: column;
     height: 90vh; /* TODO!!!!!!!!!!!! */
+    width: calc(100vw - 16px); /* calculating margin 8px on each side */
     justify-content: space-between;
+    overflow: hidden;
+  }
+
+  article[aria-label="puzzle game"] {
+    display: flex;
+    width: 100%;
+  }
+
+  section[aria-label="puzzle grid"], section[aria-label = "puzzle clues"] {
+    display: inline-block;
   }
 
   /* containing the svg */
   section[aria-label="puzzle grid"] {
     position: relative;
     height: 60vh;
-  }
+    width: 100%;
+    overflow: hidden
+  }  
 
-  /* @ TODO  should this be onlyt in @media bellow? */
-  .scrolls ol {   
-    height: calc(100% - 30px);
-    overflow-y: scroll;
-    list-style-type: none;
-  }
-
-    
+      
  @media (min-width: 900px) {
 
   main > div:first-child {
@@ -50,16 +56,16 @@
   }
 
   article[aria-label="puzzle game"] {
-    display: flex;   
-    height: 100%; /* percentage of the main div*/        
+    height: 100%; /* percentage of the main div for desktop when we don't show controls*/
+    min-height: 100%;    
     justify-content: space-around;
 
   }
-  section[aria-label="puzzle grid"], section[aria-label = "puzzle clues"] {
-    display: inline-block;
+  section[aria-label="puzzle grid"], section[aria-label = "puzzle clues"] {   
     position: static;
-    height: 100%;
-    max-height: 100%;
+    height: 95%; /* percentage of the main div for desktop when we don't show controls*/   
+    max-height: 95%;
+    min-height: 95%;
   }
 
   section[aria-label="puzzle grid"] {
@@ -81,16 +87,19 @@
     margin-left: 20px;
   }
 
-  .scrolls ol {
-    font-size: 1vw;
+  .scrolls ol {   
     height: calc(100% - 30px);
-    overflow-y: scroll;
+    min-height: calc(100% - 30px);
+    max-height: calc(100% - 30px);
+    font-size: 1vw;
     list-style-type: none;    
     padding-inline-start: 0;
-    padding-left: 0
-
+    padding-left: 0;
+    overflow-y: scroll;
+    list-style-type: none;
   }
-  .scrolls ol::-webkit-scrollbar {
+
+   .scrolls ol::-webkit-scrollbar {
     width: 12px;
     /* height: 5px; */
     border-radius: 6px;
@@ -102,46 +111,49 @@
     border-radius: 5px;
   }
 
-} 
+    
+  .scrolls ol li {
+    border-left: 10px solid transparent;
+    cursor: pointer;
+    display: flex;
+  }
+  .scrolls  h4 {
+    text-transform: uppercase;
+  }
+
+  .scrolls ol li.activeClue {
+    border-left: 10px solid transparent;
+    cursor: pointer;
+    display: flex;
+    background-color: lightblue;
+  }
+
+  .scrolls  h4 {
+    margin: 0;
+    text-transform: uppercase;
+  }
+  .scrolls ol li span {
+    line-height: 1.4;
+    margin-right: 5px;
+    padding: 5px 1px;
+    background: transparent;
+  }
+
+  .scrolls ol li > span:first-child {
+    font-weight: bold;
+    width: 24px;
+  }
+
+  .scrolls ol li > span:nth-child(2) {
+    width: calc(100% - 24px);
+  } 
+
+} /* end of media */
 
 
-.scrolls ol li {
-  border-left: 10px solid transparent;
-  cursor: pointer;
-  display: flex;
-}
-.scrolls  h4 {
-  text-transform: uppercase;
-}
-
-.scrolls ol li.activeClue {
-  border-left: 10px solid transparent;
-  cursor: pointer;
-  display: flex;
-  background-color: lightblue;
-}
-
-.scrolls  h4 {
-  text-transform: uppercase;
-}
-.scrolls ol li span {
-  line-height: 1.4;
-  margin-right: 5px;
-  padding: 5px 1px;
-  background: transparent;
-}
-
-.scrolls ol li > span:first-child {
-  font-weight: bold;
-  width: 24px;
-}
-
-.scrolls ol li > span:nth-child(2) {
-  width: calc(100% - 24px);
-} 
 
 .board {
-  position: absolute;
+  position: absolute; /* RELATIVE TO: section[aria-label="puzzle grid"] */
   top: 1px;
   left: 1px;
   right: 1px;
@@ -159,17 +171,16 @@
 @media (min-width: 900px) {
   .board {
     /* justify-content: space-between; */
-    position: absolute;
     top: 0;
     left:0;
     right: unset;
-    bottom: unset;
-    
+    bottom: unset;    
   }
 }
 
 /* mobile first */
 svg {
+  display: block;
   width: 100%;
   max-width: 100%; 
   height: 100%;
@@ -220,20 +231,21 @@ svg rect::-moz-focus-inner {
 } 
 
 .keyboard.touch {
+  position: relative;
+  /* bottom:0;
+  left:0; */
+  z-index:1;
   display: flex;
   flex-direction: column;
   justify-content: space-around;
   width: 100%;
   height: 22vh;
   max-height: 22vh;
-  position: relative;
-  overflow-y: visible;
-  bottom:0;
-  left:0;
-  z-index:1;
+  min-height: 22vh;
+  overflow-y: visible; 
   padding: 2px 0;
   background-color: lightgrey;
-
+  touch-action: none;
 }
 
 .keyboard.touch .keyboard_row {
@@ -245,7 +257,7 @@ svg rect::-moz-focus-inner {
   height: 30%;
   max-height: 30%;
   overflow-y: visible;
-  margin-top: 1.5%;
+  margin-top: 1%;
 }
 
 .keyboard.touch .button {
@@ -293,8 +305,8 @@ svg rect::-moz-focus-inner {
     background-color: #fff;
     border-bottom: none;
     padding-top: 2%;
-    padding-bottom: 12%;
-    top: -20%;
+    padding-bottom: 8%;
+    top: -10%;
   }
 }
 
@@ -314,29 +326,32 @@ svg rect::-moz-focus-inner {
   overflow: hidden;
   z-index:1;
   background-color:lightblue;
+  touch-action: none;
 }
 
 .touchClues.touch span.chevron {
-  width: 25px;
+  flex-grow: 1;
   font-size: 15vw; 
-  line-height: 0.5;
-  padding-bottom: 6px;
+  line-height: 0.6;
+  padding-bottom: 1.3vw;
+  text-align: center;
+  box-sizing: border-box;
   color: white;
 
 }
 
 .touchClues.touch span.chevron.left {
-  padding-left: 8px;
+  /* padding-left: 10px; */
 }
 
 .touchClues.touch span.chevron.right {
-   padding-left: 8px;
+  /* padding-left: 8px; */
 }
 
 .touchClues.touch .clueText  {
   height: 100%;
-  width: 76vw;
-  max-width: 76vw;
+  flex-basis: 75vw;
+  max-width: 75vw;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -362,7 +377,8 @@ svg rect::-moz-focus-inner {
   width: 76vw;
   max-width: 76vw;
   box-sizing: border-box; 
-  font-size: 4.5vw;
+  font-size: 5vw;
+  user-select: none;
 }
 
 .touchClues.touch .clueText ol li span:nth-child(1) {
@@ -370,12 +386,25 @@ svg rect::-moz-focus-inner {
   box-sizing: border-box;
   font-weight: bold;
   text-transform: uppercase;
+  user-select: none;
 }
 
 .touchClues.touch .clueText ol li span:nth-child(2) {
   padding-left: 2.5vw;
   box-sizing: border-box;
   text-align: left;
+  user-select: none;
+}
+
+
+.touchControls {
+  display: none;
+}
+
+.touchControls.touch {
+  display: flex; 
+  flex-direction: column; 
+  z-index: 1;
 }
 
 

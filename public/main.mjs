@@ -1,5 +1,5 @@
 import { Crossword, Variable } from './cross.mjs';
-import { not, createUserActivationAction } from './helper.mjs';
+import { not, createUserActivationAction, createUserActionEnd } from './helper.mjs';
 import { Action } from './action.mjs';
 import { createKeys, extractKeyEvent, toggleKeyPressClass } from './keyboard.mjs';
 
@@ -28,6 +28,7 @@ const main = document.querySelector('main');
 const svg = document.querySelector('svg');
 const board = document.querySelector('.board');
 const keyboard = document.querySelector('.keyboard');
+const touchControls = document.querySelector('.touchControls');
 
 // initial check for displaying a virtual keyboard, 
 // must change if there is touch BUT also a physical keyboard
@@ -292,6 +293,7 @@ async function displayKeyboard(actionInstance) {
     if (!useTouch) {
         // browser supports multi-touch
         keyboard.classList.remove('touch');
+
     } else {
         keyboard.classList.add('touch');
         console.log('touch');
@@ -436,13 +438,33 @@ function displayDesktopClues(clues, actionInstance) {
 function displayTouchClues(clues, actionInstance) {
     const cluesDiv = document.querySelector('.touchClues');
     const cluesText = document.querySelector('.clueText .container');
+    const [leftnav, rightnav] = document.querySelectorAll('.touchClues .chevron');
 
     // cluesDiv.setAttribute('data-dir', actionInstance.direction);
     // cluesText.setAttribute('data-clue-index', 1);
 
-    const activationFunction = function (evt) {
-        const parentElement = this;
-        activateFromCluesList(evt, parentElement, actionInstance);
+    const changeDirectionFunction = actionInstance.changeDirection.bind(actionInstance);
+    const keydown = actionInstance.keydown.bind(actionInstance);
+    const reset = actionInstance.reset.bind(actionInstance, board);
+
+
+    const navigationFunction = function (evt) {
+        evt.preventDefault();
+        // synthesized event: {key, code, type, shiftKey}       
+        const synthesizedEvent = { key: 'Tab', code: 'Tab', type: evt.type, shiftKey: evt.target == leftnav };
+
+        // closure
+        keydown(synthesizedEvent); // this should be synchronously dispatched!
+
+        // the selected cell sould be set synchronously by the syncrhonous keydown call above
+        if (actionInstance.zoomLevel > 1 && !actionInstance.movePending) {
+            const { x, y } = actionInstance.selected.getBoundingClientRect();
+            const diffX = actionInstance.lastHoldPosition[0] - x + (window.screen.availWidth / 2);
+            const diffY = actionInstance.lastHoldPosition[1] - y + (window.screen.availHeight / 4);;
+            const moveTo = actionInstance.touchMove.bind(actionInstance, board, diffX, diffY);
+            actionInstance.movePending = true;
+            window.requestAnimationFrame(moveTo);
+        }
     };
 
     for (let direction in clues) {
@@ -451,15 +473,32 @@ function displayTouchClues(clues, actionInstance) {
         cluesText.appendChild(list);
 
         if (window.PointerEvent) {
-            list.addEventListener('pointerdown', activationFunction, true);
+            list.addEventListener('pointerdown', changeDirectionFunction, true);
         } else {
-            list.addEventListener('touchstart', activationFunction, true);
-            list.addEventListener('mousedown', activationFunction, true)
+            list.addEventListener('touchstart', changeDirectionFunction, true);
+            list.addEventListener('mousedown', changeDirectionFunction, true);
         }
     }
 
-    cluesDiv.classList.add('touch');
+    // add navigation action from chevrons
+    if (window.PointerEvent) {
+        leftnav.addEventListener('pointerdown', navigationFunction, true);
+        rightnav.addEventListener('pointerdown', navigationFunction, true);
+        leftnav.addEventListener('pointerup', reset, true);
+        rightnav.addEventListener('pointerup', reset, true);
+    } else {
+        leftnav.addEventListener('touchstart', navigationFunction, true);
+        rightnav.addEventListener('touchstart', navigationFunction, true);
+        leftnav.addEventListener('touchend', reset, true);
+        rightnav.addEventListener('touchend', reset, true);
+        leftnav.addEventListener('mousedown', navigationFunction, true);
+        rightnav.addEventListener('mousedown', navigationFunction, true);
+        leftnav.addEventListener('mouseup', reset, true);
+        rightnav.addEventListener('mouseup', reset, true);
+    }
 
+    cluesDiv.classList.add('touch');
+    touchControls.classList.add('touch');
 }
 
 
