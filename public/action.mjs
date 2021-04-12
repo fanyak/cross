@@ -41,7 +41,7 @@ export class Action {
         this.position = [0, 0];
 
 
-        this.selectedWord;
+        this.selectedClue;
     }
 
 
@@ -153,6 +153,10 @@ export class Action {
 
         evt.preventDefault();
 
+        if (isBlackCell(evt.target)) {
+            return;
+        }
+
         // prevent cell activation when we have multi-touch
         // // https://developer.mozilla.org/en-US/docs/Web/API/Pointer_events/Multi-touch_interaction#pointer_down
 
@@ -171,7 +175,7 @@ export class Action {
         }
 
         // Handle MULTI-TOUCH event In case the device supports Pointer Events (we have set the PointerDown event in main.mjs)
-
+        // we don't want to activate a cell when zooming or moving
         // @TODO: SEE ALSO PointerCancel: https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/pointercancel_event
         if (this.pointerCaches[evt.type] && this.pointerCaches[evt.type].length) {
             this.clearCache(evt.type);
@@ -571,11 +575,14 @@ export class Action {
 
     updateCluesList(clueNumber, direction, fromCluesList = false) {
 
-        // remove previously selected style
-        if (this.selectedWord) {
-            // no new change
-            const [previousDir, previousNum] = this.selectedWord.split('-');
+        const addHighlight = this.addHighlight.bind(this);
+
+        // remove previously selected style in Clues List
+        if (this.selectedClue) {
+            // no new change but maybe the crossed word has changed
+            const [previousDir, previousNum] = this.selectedClue.split('-');
             if (previousDir == direction && previousNum == clueNumber) {
+                window.requestAnimationFrame(addHighlight);
                 return;
             }
             document.querySelector(`[data-dir='${previousDir}'] [data-li-clue-index ='${previousNum}']`).classList.remove('activeClue');
@@ -583,7 +590,7 @@ export class Action {
 
         // make the change
         this.direction = direction; //@TODO change the way we do this
-        this.selectedWord = `${this.direction}-${clueNumber}`;
+        this.selectedClue = `${this.direction}-${clueNumber}`;
         const active = document.querySelector(`[data-dir='${this.direction}'] [data-li-clue-index ='${clueNumber}']`);
         active.classList.add('activeClue');
 
@@ -592,6 +599,38 @@ export class Action {
             gridCell.dispatchEvent(new Event(createUserActivationAction(), { bubbles: true })); // first send the event to the svg
         } else {
             active.scrollIntoView();
+        }
+
+        window.requestAnimationFrame(addHighlight);
+    }
+
+    // animationFrame Queues don't run until all queued are completed
+    // HightLight the crossed Clue for the one that is selected
+
+    addHighlight() {
+        // IF WE ARE ON MOBILE DONT'T CONTINUE // SOS SOS SOS!!!!!!!!!!!  
+        const scrolls = document.querySelector('.scrolls ol');
+        if (!scrolls) {
+            console.log('touch');
+            return;
+        }
+        if (this.highlightedClue) {
+            const [previousDir, previousNum] = this.highlightedClue.split('-');
+            document.querySelector(`[data-dir='${previousDir}'] [data-li-clue-index ='${previousNum}']`).classList.remove('highlightedClue');
+        }
+        const otherDirection = this.direction == 'across' ? 'down' : 'across';
+        const highlightedVariable = getCellVariable(this.selected, otherDirection); //selected.getAttribute(`data-variable-${direction}`).split('-');
+        const highlightedClue = this.startOfWordCells.findIndex(({ cell }) => getCellVariable(cell, otherDirection) == highlightedVariable);
+        // maybe there isn't a word on the other direction
+        if (highlightedClue > -1) {
+            const highlightedClueNumber = highlightedClue + 1;
+            const highlightedLi = document.querySelector(`[data-dir='${otherDirection}'] [data-li-clue-index ='${highlightedClueNumber}']`);
+
+            this.highlightedClue = `${otherDirection}-${highlightedClueNumber}`;
+            highlightedLi.classList.add('highlightedClue');
+
+            //@TODO SOS MAKE SURE WE ARE NOT DOING THIS ON MOBILE, BECAUSE IT WLL SCROLL TO VIEW THE OTHER DIRECTION!!!!!!!!!!!
+            highlightedLi.scrollIntoView();
         }
     }
 

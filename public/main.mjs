@@ -396,7 +396,7 @@ function activateFromCluesList(evt, parent, actionInstance) {
     // @TODO change directly the actionInstace directin from here??
     const direction = parent.getAttribute('data-dir');
 
-    if (actionInstance.selectedWord && actionInstance.selectedWord == `${direction}-${clueNumber}`) {
+    if (actionInstance.selectedClue && actionInstance.selectedClue == `${direction}-${clueNumber}`) {
         return;
     }
 
