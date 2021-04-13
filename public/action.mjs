@@ -487,7 +487,7 @@ export class Action {
 
         // Schedule a reset touch position too left or too right
         const { x, y, width, height, left, top, bottom, right } = src.getBoundingClientRect();
-        const keyBoardHeight = document.querySelector('.keyboard.touch').getBoundingClientRect().height; //;
+        const keyBoardHeight = document.querySelector('.touchControls.touch').getBoundingClientRect().height; //;
         const { availWidth, availHeight } = window.screen;
         const statusBarHeight = availHeight - window.innerHeight;
 
@@ -512,7 +512,7 @@ export class Action {
                 // console.log(top, height, bottom, availHeight);
 
                 if (bottom > height) { // if we moved down
-                    resetY = Math.abs((availHeight - (keyBoardHeight + statusBarHeight) - height) / 2); //relative to the original
+                    resetY = Math.abs((availHeight - (keyBoardHeight + 10 + statusBarHeight) - height) / 2); //relative to the original
                 } else if (top < -(height - statusBarHeight)) { // don't pass over half of the screen
                     resetY = ((availHeight - statusBarHeight - height) / 2);
                 }

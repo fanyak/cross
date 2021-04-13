@@ -18,6 +18,7 @@
   
   body {
     font-family: "arial,sans-serif";
+    /* font-family: 'Libre Franklin', sans-serif; */
   }
 
   /* containing the whole page */
@@ -33,127 +34,180 @@
 
   article[aria-label="puzzle game"] {
     display: flex;
-    width: 100%;
+    width: 100%;  /* relevant to the main div */
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    flex-wrap: wrap;
   }
 
   section[aria-label="puzzle grid"], section[aria-label = "puzzle clues"] {
-    display: inline-block;
+    /* display: inline-block; */
   }
 
   /* containing the svg */
   section[aria-label="puzzle grid"] {
     position: relative;
     height: 60vh;
-    width: 100%;
+    flex-basis: 100%; /* mobile first */
+    max-width: 100%;
     overflow: hidden
-  }  
+  } 
 
-      
- @media (min-width: 900px) {
+  /* VERY SMALL PHONES */
+  
+  @media screen and (max-width: 320px) {
+    section[aria-label="puzzle grid"] {
+      height: auto;
+      /* flex-grow: 1; */
+    }
+  
+    section[aria-label="puzzle clues"] {
+      font-size: 13px;
+    }
 
-  main > div:first-child {
-    width: 80vw; /* check syndication */
+    .scrolls ol::-webkit-scrollbar {
+      width: 8px;
+    }
   }
 
-  article[aria-label="puzzle game"] {
-    height: 100%; /* percentage of the main div for desktop when we don't show controls*/
-    min-height: 100%;    
-    justify-content: space-around;
-
-  }
-  section[aria-label="puzzle grid"], section[aria-label = "puzzle clues"] {   
-    position: static;
-    height: 95%; /* percentage of the main div for desktop when we don't show controls*/   
-    max-height: 95%;
-    min-height: 95%;
-  }
-
+  
+@media screen and (min-width:768px) and (max-width:1199px) {
   section[aria-label="puzzle grid"] {
-    position: relative;
     flex-basis: 50%;
+    /* flex-grow: 1; */
   }
 
   section[aria-label="puzzle clues"] {
     flex-basis: 50%;
   }
+}
 
-  section[aria-label = "puzzle clues"] .scrolls {
-    display: flex;
-    justify-content:space-around;
-  }
+      
+ @media screen and (min-width: 1200px) {
 
-  .scrolls {
-    height: 100%;
-    margin-left: 20px;
-  }
-
-  .scrolls ol {   
-    height: calc(100% - 30px);
-    min-height: calc(100% - 30px);
-    max-height: calc(100% - 30px);
-    font-size: 1vw;
-    list-style-type: none;    
-    padding-inline-start: 0;
-    padding-left: 0;
-    overflow-y: scroll;
-    list-style-type: none;
+  main {
+    font-size: 15px;
+    box-sizing: border-box;
   }
 
-   .scrolls ol::-webkit-scrollbar {
-    width: 12px;
-    /* height: 5px; */
-    border-radius: 6px;
-    background-color:#ddd; /* or add it to the track */
+  main > div:first-child {
+    /* width: 80vw; check syndication */
   }
 
-  .scrolls ol::-webkit-scrollbar-thumb {
-    background: #aaa ;
-    border-radius: 5px;
+  article[aria-label="puzzle game"] {
+    height: 100%; /* percentage of the main div for desktop when we don't show controls*/
+    min-height: 100%;    
+    justify-content: center;
+
+  }
+  
+  section[aria-label="puzzle grid"] {
+    flex-basis: 30%;
+    height: 65vh;    
+    max-height: 65vh; 
+    min-height: 65vh; 
   }
 
-    
-  .scrolls ol li {
-    border-left: 10px solid transparent;
-    cursor: pointer;
-    display: flex;
+  section[aria-label="puzzle clues"] {
+    flex-basis: 30%;
+    /* percentage of the main > div for desktop when we don't show controls   */    
   }
-  .scrolls  h4 {
-    text-transform: uppercase;
-  }
-
-  .scrolls ol li.activeClue {
-    border-left: 10px solid transparent;
-    cursor: pointer;
-    display: flex;
-    background-color: lightblue;
-  }
-
-  .scrolls ol li.highlightedClue {
-    border-color: lightblue;
-  }
-
-  .scrolls  h4 {
-    margin: 0;
-    text-transform: uppercase;
-  }
-  .scrolls ol li span {
-    line-height: 1.4;
-    margin-right: 5px;
-    padding: 5px 1px;
-    background: transparent;
-  }
-
-  .scrolls ol li > span:first-child {
-    font-weight: bold;
-    width: 24px;
-  }
-
-  .scrolls ol li > span:nth-child(2) {
-    width: calc(100% - 24px);
-  } 
 
 } /* end of media */
 
+
+/* scrolls */
+.scrolls:not([hidden]) {
+  display: flex;
+  justify-content:space-around; 
+}
+
+.scrolls:not([hidden]) > div {
+  margin-left: 1vw;
+}
+
+.scrolls:not([hidden]) ol {   
+  height: calc(20vh - 30px);
+  min-height: calc(20vh - 30px);
+  max-height: calc(20vh - 30px);
+  font-size: 1vw;
+  list-style-type: none;    
+  padding-inline-start: 0;
+  padding-left: 0;
+  overflow-y: scroll;
+  list-style-type: none;
+  font-size: inherit;
+  box-sizing: border-box;
+}
+
+@media screen and (min-width: 768px){
+  .scrolls:not([hidden]) ol {   
+    height: calc(80vh - 30px);
+    min-height: calc(80vh - 30px);
+    max-height: calc(80vh - 30px);  
+  }
+}
+  
+.scrolls ol li {
+  border-left: 10px solid transparent;
+  cursor: pointer;
+  display: flex;
+  padding-right: 1vw;
+  box-sizing: border-box;
+}
+
+.scrolls h4 {
+  width: 95%;
+  margin: 0;
+  padding-bottom: 5px;
+  text-transform: uppercase;
+  border-bottom: solid 1px #ccc;
+}
+
+.scrolls ol li.activeClue {
+  border-left: 10px solid transparent;
+  cursor: pointer;
+  display: flex;
+  background-color: lightblue;
+}
+
+.scrolls ol li.highlightedClue {
+  border-color: lightblue;
+}
+
+.scrolls ol li span {
+  line-height: 1.3;
+  padding: 5px 1px;
+  background: transparent;
+}
+
+.scrolls ol li > span:first-child {
+  font-weight: bold;
+  width: 20px;
+  text-align: right;
+  margin-right: 5px;
+  box-sizing: border-box;
+}
+
+.scrolls ol li > span:nth-child(2) {
+  width: calc(100% - 24px);
+} 
+
+
+@media screen and (min-width: 1200px) {
+  .scrolls ol::-webkit-scrollbar {
+    width: 12px;
+    /* height: 5px; */
+    border-radius: 4px;
+    background-color:#ddd; /* or add it to the track */
+  }
+  
+  .scrolls ol::-webkit-scrollbar-thumb {
+    background: #aaa ;
+    border-radius: 3px;
+  }
+}
 
 
 .board {
@@ -172,7 +226,7 @@
 }
 
   
-@media (min-width: 900px) {
+@media (min-width: 1399px) {
   .board {
     /* justify-content: space-between; */
     top: 0;
@@ -187,7 +241,7 @@ svg {
   display: block;
   width: 100%;
   max-width: 100%; 
-  height: 100%;
+  max-height: 100%;
   user-select: none;
 }
   
@@ -213,13 +267,19 @@ svg rect::-moz-focus-inner {
   outline: none;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 1399px) {
   svg {
     /* width: 100%; */
     width: 501px;
     height: 501px;
   }
 }
+
+/* @media (max-width: 1398px) and (min-height: 700px) {
+  svg {
+    height: 100%;
+  }
+} */
 
 
 .hidden {
@@ -354,8 +414,8 @@ svg rect::-moz-focus-inner {
 
 .touchClues.touch .clueText  {
   height: 100%;
-  flex-basis: 75vw;
-  max-width: 75vw;
+  flex-basis: 72vw;
+  max-width: 72vw;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -378,15 +438,15 @@ svg rect::-moz-focus-inner {
   align-items: center; 
   height: 7.5vh;
   max-height: 7.5vh;
-  width: 76vw;
-  max-width: 76vw;
+  width: 72vw;
+  max-width: 72vw;
   box-sizing: border-box; 
-  font-size: 5vw;
+  font-size: 4.7vw;
   user-select: none;
 }
 
 .touchClues.touch .clueText ol li span:nth-child(1) {
-  padding-left: 1vw;
+  padding-left: 2vw;
   box-sizing: border-box;
   font-weight: bold;
   text-transform: uppercase;
@@ -402,7 +462,7 @@ svg rect::-moz-focus-inner {
 
 
 .touchControls {
-  display: none;
+  display: none;  
 }
 
 .touchControls.touch {
