@@ -1,38 +1,38 @@
 // REF https://v8.dev/features/modules
-class Variable { 
+class Variable {
 
     constructor(i, j, direction, length) {
-    ///Create a new variable with starting point, direction, and length."""
-    this.i = i;
-    this.j = j;
-    this.direction = direction;
-    this.length = length;
-    this.cells = [];
-    for (let k=0; k<this.length; k++) {
-        this.cells.push(
-            [this.i + (this.direction == Variable.DOWN ? k : 0),
-             this.j + (this.direction == Variable.ACROSS? k: 0)]
+        ///Create a new variable with starting point, direction, and length."""
+        this.i = i;
+        this.j = j;
+        this.direction = direction;
+        this.length = length;
+        this.cells = [];
+        for (let k = 0; k < this.length; k++) {
+            this.cells.push(
+                [this.i + (this.direction == Variable.DOWN ? k : 0),
+                this.j + (this.direction == Variable.ACROSS ? k : 0)]
             );
         }
     }
 
-    equals(other){
+    equals(other) {
         return (
             (this.i == other.i) &&
             (this.j == other.j) &&
             (this.direction == other.direction) &&
             (this.length == other.length)
-        ); 
+        );
     }
 
-    toString(){
+    toString() {
         return `(${this.i}, ${this.j}, '${this.direction}', ${this.length})`;
     }
 
     intersection(other) {
         let _intersection = new Set();
         for (let elem of other.cells) {
-            if ( this.cells.find(cell => Variable.isSameCell(elem, cell)) ) {
+            if (this.cells.find(cell => Variable.isSameCell(elem, cell))) {
                 _intersection.add(elem);
             }
         }
@@ -50,17 +50,17 @@ Variable.DOWN = 'down';
 
 Variable.isSameCell = (cell1, cell2) => {
     // console.log(cell1, cell2)
-    if(cell1.length !== cell2.length){
+    if (cell1.length !== cell2.length) {
         return false;
     }
-    for(let key of cell1.keys()){
+    for (let key of cell1.keys()) {
         if (cell1[key] != cell2[key]) { // not strict equality => want to match strings to numbers instead of parsing
             return false;
         }
     }
-    return true;    
+    return true;
 };
- 
+
 
 class Crossword {
     constructor(structure, words, height, width) {
@@ -70,12 +70,12 @@ class Crossword {
         this.height = height;
         this.width = width;
         this.structure = [];
-        for(let i = 0; i<this.height; i++) {
+        for (let i = 0; i < this.height; i++) {
             const row = [];
-            for(let j = 0; j<this.width; j++) {
-                if(constraints.find(val => val == i*this.height + j+1)){
+            for (let j = 0; j < this.width; j++) {
+                if (constraints.find(val => val == i * this.height + j + 1)) {
                     row.push(false);
-                } else{
+                } else {
                     row.push(true);
                 }
             }
@@ -83,57 +83,57 @@ class Crossword {
         }
         // console.log(this.structure)
 
-        this.words = [...new Set( words.vocab.map(word => word.toUpperCase() ) )];
+        this.words = [...new Set(words.vocab.map(word => word.toUpperCase()))];
         //console.log(this.words.slice(0,10))
 
         // Determine variable set
         this.variables = new Set();
 
-        for (let i=0; i <this.height; i++) {
-            for (let j=0 ; j<this.width; j++) {
+        for (let i = 0; i < this.height; i++) {
+            for (let j = 0; j < this.width; j++) {
 
-                 // Vertical words
+                // Vertical words
                 let starts_word = (
                     this.structure[i][j]
-                    && (i == 0 || !this.structure[i - 1][j]) );
+                    && (i == 0 || !this.structure[i - 1][j]));
 
                 if (starts_word) {
                     let length = 1;
-                    for (let k=i + 1; k<this.height; k++) {
+                    for (let k = i + 1; k < this.height; k++) {
                         if (this.structure[k][j]) {
-                            length+= 1;
+                            length += 1;
                         }
                         else {
                             break;
-                        }                        
+                        }
                     }
-                     
-                    if (length > 1) {                    
-                        this.variables.add( new Variable(
+
+                    if (length > 1) {
+                        this.variables.add(new Variable(
                             i, j,
                             Variable.DOWN,
                             length
                         ));
                     }
-                        
+
                 }
 
                 // Horizontal words
                 starts_word = (
                     this.structure[i][j]
-                    &&  (j == 0 || !this.structure[i][j - 1])
+                    && (j == 0 || !this.structure[i][j - 1])
                 );
                 if (starts_word) {
                     let length = 1;
                     for (let k = j + 1; k < this.width; k++) {
                         if (this.structure[i][k]) {
                             length += 1;
-                        }                            
+                        }
                         else {
                             break;
-                        }                            
+                        }
                     }
-                        
+
                     if (length > 1) {
                         this.variables.add(new Variable(
                             i, j,
@@ -141,10 +141,10 @@ class Crossword {
                             length
                         ));
                     }
-                        
-                }                  
-                
-            } 
+
+                }
+
+            }
         }
         // Compute overlaps for each word
         // For any pair of variables v1, v2, their overlap is either:
@@ -164,28 +164,28 @@ class Crossword {
                     const union = intersection.values().next();
                     const index1 = v1.cells.findIndex(cell => Variable.isSameCell(cell, union.value));
                     const index2 = v2.cells.findIndex(cell => Variable.isSameCell(cell, union.value));
-                    this.overlaps.set([v1,v2], [index1, index2]);
-                }                
+                    this.overlaps.set([v1, v2], [index1, index2]);
+                }
             }
-        }           
+        }
     }
 
     neighbors(variable) {
         /// Given a variable, return set of overlapping variables.
         const _neighbors = new Set();
-        for (let v of this.variables){
-            if(v.equals(variable)){
+        for (let v of this.variables) {
+            if (v.equals(variable)) {
                 continue;
             }
-            if(this.overlaps.has([v,variable])){
+            if (this.overlaps.has([v, variable])) {
                 _neighbors.add(variable);
             }
         }
         return _neighbors;
     }
-    
-    
+
+
 }
 
 
-export {Crossword, Variable};
+export { Crossword, Variable,  };

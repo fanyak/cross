@@ -4,8 +4,7 @@ const qwerty = [
     ['Z', 'X', 'C', 'V', 'B', 'N', 'M', '&#9003;']
 ];
 
-export function createKeys() {
-    const board = document.querySelector('.keyboard');
+export function createKeys(board) {
     console.log(board);
 
     for (let row of qwerty) {

@@ -8,54 +8,43 @@
 
 
     <title>Crossword</title>
-    <link rel="preconnect" href="https://fonts.gstatic.com">
-    <link href="style.css" rel="stylesheet">
+    <!-- <link href="style.css" rel="stylesheet"> -->
     <!-- <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400&display=swap" rel="stylesheet"> -->
 
 </head>
 
 <body>
-    <main>
-        <div>
-
-            <article aria-label="puzzle game">
-                <section aria-label="puzzle grid">
-                    <div class="board">
-                        <svg viewBox="0 0 501 501" xmlns="http://www.w3.org/2000/svg" role="grid"
-                            aria-labelledby="id-grid-layout">
-                            <title id="id-grid-layout">Puzzle Grid</title>
-                            <use xlink:href="#checked"></use>
-                            <defs id>
-                                <g id="checked"></g>
-                            </defs>
-                        </svg>
-                    </div>
-                </section>
-
-                <section hidden aria-label="puzzle clues">
-                    <div class="scrolls" hidden>
-                    </div>
-                </section>
-
-            </article>
-
-            <div class="touchControls">
-                <div class="touchClues" aria-label="puzzle clues carousel">
-                    <span class="chevron left">&lsaquo;</span>
-                    <div class="clueText">
-                        <div class="container"></div>
-                    </div>
-                    <span class="chevron right">&rsaquo;</span>
-                </div>
-                <div class="keyboard">
-                </div>
-            </div>
-
-        </div>
-    </main>
+    <cross-word></cross-word>
 
 
-    <script src="main.mjs" type="module"></script>
+    <!-- create this file using the ROLUP config file
+        REF: https://www.rollupjs.org/guide/en/#command-line-reference
+       CLI:  rollup --config
+    -->
+
+    <!-- //////////// MODERN BROWSER BUNDLE /////////////// -->
+    <script src="bundle.js"></script>
+
+
+
+    <!-- ////////////// LEGACCY  BUNDLE //////////////-->
+
+    <!-- Babel polyfills--need to be loaded _before_ Web 
+     Components polyfills -->
+    <!-- <script src="babel-polyfills-nomodule.js"></script> -->
+
+    <!-- Load Web Components polyfills, if needed. -->
+    <!-- <script src="node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js"></script> -->
+
+    <!-- SystemJS loader -->
+    <!-- <script src="node_modules/systemjs/dist/s.min.js"></script> -->
+
+    <!-- Use SystemJS to load the application bundle -->
+    <!-- <script>
+        System.import('./legacyBundle/main.js');
+    </script> -->
+
+
 
     <script>
         window.addEventListener('load', (evt) => {

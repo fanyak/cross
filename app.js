@@ -14,6 +14,8 @@ const port = process.env.port || 3000;
 
 const WEB_PATH = join(__dirname, 'public');
 
+const MODULE_PATH = join(__dirname, 'node_modules');
+
 //@ TODO move this to file
 const fileServer = express.static(WEB_PATH, { // OPTIONS OBJECT 
     setHeaders(res, path) {
@@ -25,6 +27,27 @@ const fileServer = express.static(WEB_PATH, { // OPTIONS OBJECT
         }
     }
 });
+
+
+// ALLOW LOADING FROM MODULES
+const ModuleServer = express.static(MODULE_PATH, { // OPTIONS OBJECT 
+    setHeaders(res, path) {
+        const parts = path.split('.');
+        if (parts[parts.length - 1] == 'mjs') {
+            // JUST TO MAKE SURE THAT IT IS SERVED AS JAVASCRIPT
+            // REF: https://v8.dev/features/modules#mjs
+            res.setHeader('Content-Type', 'text/javascript');
+        }
+    }
+});
+app.use(ModuleServer);
+
+app.use('/node_modules/', (req, res, next) => {
+    res.setHeader('Content-Type', 'text/javascript');
+    res.status(200).sendFile(`${MODULE_PATH}/${req.url}`);
+});
+
+
 
 app.use(fileServer);
 

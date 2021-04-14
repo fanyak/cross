@@ -4,21 +4,23 @@ import {
     createUserActivationAction, createUserActionEnd, touchesDistance, getTouchCoordsFromEvent
 } from './helper.mjs';
 
+const { ACROSS, DOWN, isSameCell } = Variable;
 
 export class Action {
 
-    constructor(crossword, direction, startOfWordCells) {
+    constructor(crossword, direction, startOfWordCells, shadowRoot) {
         this.crossword = crossword;
         this.rafPending = false;
 
         this.selected;
         this.direction = direction; // initial direction setting
         this.cellSpace;
+        this.shadowRoot = shadowRoot;
 
         // these are static once the crossword is complete, don't recalculate it every time  
         this.startOfWordCells = startOfWordCells;  // this is ordered by word index for the display cells    
         this.variables = Array.from(crossword.variables);
-        const cells = [...document.querySelectorAll('svg [id*="cell-id"]')];
+        const cells = [...this.shadowRoot.querySelectorAll('svg [id*="cell-id"]')];
         this.activeCells = cells.filter(not(isBlackCell));
 
         // handle Multi-Touch events for devices that support PointerEvents
@@ -182,16 +184,26 @@ export class Action {
             return;
         }
 
+        // needed after Shadow DOM added
+        // create a copy to preserve the composedPath(); 
+        const target = evt.composedPath()[0];
+        if (!target.id.includes('cell')) {
+            return;
+        }
+
+        const { type } = evt;
+        const e = { target, type };
+
         // non - synthetic events
         // Manage MULTI-touch event in case the device supports Pointer Events
         // the function will check if it is a PointerDown event
         // will not apply for Touch events
-        this.pushEvent(evt);
-
+        this.pushEvent(e);
         // Applies to PointerDown / TouchStart / MouseDown
         // we handle activation on PointerUp / TouchEnd / MouseUp 
         // because we want to cancel the activation if the user goes on to Zoom or Move the Board after the initial Start/Down event
-        this.handleActivationOnEnd = this.handleActivationEvent.bind(this, evt);
+
+        this.handleActivationOnEnd = this.handleActivationEvent.bind(this, e);
         evt.target.addEventListener(createUserActionEnd(evt), this.handleActivationOnEnd, true);
     }
 
@@ -200,7 +212,7 @@ export class Action {
     // the Function is overloaed with pointerupEvent if not called by dispatched synthetic event
     handleActivationEvent(startEvent, endEvent) {
 
-        const el = document.getElementById(startEvent.target.id);
+        const el = startEvent.target.id && this.shadowRoot.querySelector(`#${startEvent.target.id}`);
 
         if (el && el.id.includes('cell') && not(isBlackCell)(el)) {
 
@@ -222,7 +234,7 @@ export class Action {
             this.selected = el;
             this.rafPending = true;
 
-            const updateCellView = this.updateCellView.bind(this, startEvent);
+            const updateCellView = this.updateCellView.bind(this);
             window.requestAnimationFrame(updateCellView);
             // allow next activation
         }
@@ -259,8 +271,8 @@ export class Action {
     calculateWordIndexAndUpdate() {
         const selectedCellCoords = getCellCoords(this.selected, this.crossword.width, this.crossword.height);
         const selectedCellVariable = getCellVariable(this.selected, this.direction).split('-'); //selected.getAttribute(`data-variable-${direction}`).split('-');
-        const word = this.variables.find(v => Variable.isSameCell([v.i, v.j], selectedCellVariable) && v.direction == this.direction);
-        const letterIndex = word.cells.findIndex(cell => Variable.isSameCell(selectedCellCoords, cell));
+        const word = this.variables.find(v => isSameCell([v.i, v.j], selectedCellVariable) && v.direction == this.direction);
+        const letterIndex = word.cells.findIndex(cell => isSameCell(selectedCellCoords, cell));
 
         const wordNumber = this.startOfWordCells.findIndex(({ cell }) => getCellVariable(cell, this.direction) == getCellVariable(this.selected, this.direction));
         const clueNumber = wordNumber + 1;
@@ -279,10 +291,10 @@ export class Action {
     changeActiveCell(cellNumber, diff) {
 
         let nextId = cellNumber + diff;
-        let next = document.getElementById(`cell-id-${nextId}`);
+        let next = this.shadowRoot.querySelector(`#cell-id-${nextId}`);
         while (next && isBlackCell(next)) {
             nextId += diff;
-            next = document.getElementById(`cell-id-${nextId}`);
+            next = this.shadowRoot.querySelector(`#cell-id-${nextId}`);
         }
         if (next) {
             // synchronous dispatch : https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/dispatchEvent
@@ -294,8 +306,8 @@ export class Action {
 
     removeExistingContent(cellId) {
         const letterId = cellId.replace('cell', 'letter');
-        const text = document.querySelector(`#${letterId}`);
-        const hiddenText = document.querySelector(`#${letterId} .hidden`);
+        const text = this.shadowRoot.querySelector(`#${letterId}`);
+        const hiddenText = this.shadowRoot.querySelector(`#${letterId} .hidden`);
 
         const content = [...text.childNodes].find(not(isHiddenNode));
         if (content) {
@@ -306,7 +318,7 @@ export class Action {
 
 
     changeDirection() {
-        const [changeDirection] = [Variable.ACROSS, Variable.DOWN].filter(dir => dir !== this.direction);
+        const [changeDirection] = [ACROSS, DOWN].filter(dir => dir !== this.direction);
         this.direction = changeDirection;
         const cell = this.selected;
         this.selected = null; // prevent loop
@@ -487,7 +499,7 @@ export class Action {
 
         // Schedule a reset touch position too left or too right
         const { x, y, width, height, left, top, bottom, right } = src.getBoundingClientRect();
-        const keyBoardHeight = document.querySelector('.touchControls.touch').getBoundingClientRect().height; //;
+        const keyBoardHeight = this.shadowRoot.querySelector('.touchControls.touch').getBoundingClientRect().height; //;
         const { availWidth, availHeight } = window.screen;
         const statusBarHeight = availHeight - window.innerHeight;
 
@@ -585,13 +597,13 @@ export class Action {
                 window.requestAnimationFrame(addHighlight);
                 return;
             }
-            document.querySelector(`[data-dir='${previousDir}'] [data-li-clue-index ='${previousNum}']`).classList.remove('activeClue');
+            this.shadowRoot.querySelector(`[data-dir='${previousDir}'] [data-li-clue-index ='${previousNum}']`).classList.remove('activeClue');
         }
 
         // make the change
         this.direction = direction; //@TODO change the way we do this
         this.selectedClue = `${this.direction}-${clueNumber}`;
-        const active = document.querySelector(`[data-dir='${this.direction}'] [data-li-clue-index ='${clueNumber}']`);
+        const active = this.shadowRoot.querySelector(`[data-dir='${this.direction}'] [data-li-clue-index ='${clueNumber}']`);
         active.classList.add('activeClue');
 
         if (fromCluesList) {
@@ -609,14 +621,14 @@ export class Action {
 
     addHighlight() {
         // IF WE ARE ON MOBILE DONT'T CONTINUE // SOS SOS SOS!!!!!!!!!!!  
-        const scrolls = document.querySelector('.scrolls ol');
+        const scrolls = this.shadowRoot.querySelector('.scrolls ol');
         if (!scrolls) {
-            console.log('touch');
+            //  console.log('touch');
             return;
         }
         if (this.highlightedClue) {
             const [previousDir, previousNum] = this.highlightedClue.split('-');
-            document.querySelector(`[data-dir='${previousDir}'] [data-li-clue-index ='${previousNum}']`).classList.remove('highlightedClue');
+            this.shadowRoot.querySelector(`[data-dir='${previousDir}'] [data-li-clue-index ='${previousNum}']`).classList.remove('highlightedClue');
         }
         const otherDirection = this.direction == 'across' ? 'down' : 'across';
         const highlightedVariable = getCellVariable(this.selected, otherDirection); //selected.getAttribute(`data-variable-${direction}`).split('-');
@@ -624,7 +636,7 @@ export class Action {
         // maybe there isn't a word on the other direction
         if (highlightedClue > -1) {
             const highlightedClueNumber = highlightedClue + 1;
-            const highlightedLi = document.querySelector(`[data-dir='${otherDirection}'] [data-li-clue-index ='${highlightedClueNumber}']`);
+            const highlightedLi = this.shadowRoot.querySelector(`[data-dir='${otherDirection}'] [data-li-clue-index ='${highlightedClueNumber}']`);
 
             this.highlightedClue = `${otherDirection}-${highlightedClueNumber}`;
             highlightedLi.classList.add('highlightedClue');
@@ -635,21 +647,22 @@ export class Action {
     }
 
 }
-// The Task queue is on the opposite side of the Render steps inside a Frame
+// The Task queue is on the opposite side of the Render steps Ιnside a Frame
 
 // Rendering can happen in between Javascript Tasks BUT ALSO many tasks can happen before the BROWSER chooses to go to render steps
 
 // Javascript runs first in a frame BEFORE RAF: javascript -> style -> layout -> paint !!!!!!!!!!! (javascript -> RAF -> style-> layout -> paint)
 // BUT after javascript -> style -> layout -> paint, we can have another Javascript in the SAME frame
 
-//INSIDE A FRAME: Javasript will run to completion (empty task queue) BEFORE rendering can happen:
+//INSIDE A FRAME: Javasript will run to completion (empty task queue??) BEFORE rendering can happen:
 
     // An Event Listener  callbacks are queued Tasks (not a microTask)
     // Microtasks = promises, mutationObservers:
         // Event Listener callbacks are called asyncrhonously by User Interaction 
         // Event Listener callbacks are called synchronously by javascript
     //  If we have an asyncrhonous Task (User Interaction), that means that THIS task will run to completion, before a microtask can execute
-    // If we have a syncrhonous function (DispatchEvent), then the SCRIPT is on the task queue and IT will have to execute to completion before we can run microtasks
+    // If we have a syncrhonous function (DispatchEvent), then the SCRIPT is on the task queue and IT will have to execute to completion
+        // before we can run microtasks
 
     // RAF RUNS IN THE RENDER STEPS, AFTER JAVASCRIPT EXECUTION !!!!!!!!!!! (oposite side of the Event Loop from the task queue) INSIDE A FRAME => , 
         // if we had changed style with javascript before RAF,
