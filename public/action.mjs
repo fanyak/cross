@@ -499,7 +499,7 @@ export class Action {
 
         // Schedule a reset touch position too left or too right
         const { x, y, width, height, left, top, bottom, right } = src.getBoundingClientRect();
-        const keyBoardHeight = this.shadowRoot.querySelector('.touchControls.touch').getBoundingClientRect().height; //;
+        const keyBoardHeight = this.shadowRoot.querySelector('main.touch .touchControls').getBoundingClientRect().height; //;
         const { availWidth, availHeight } = window.screen;
         const statusBarHeight = availHeight - window.innerHeight;
 

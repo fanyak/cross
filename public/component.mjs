@@ -34,9 +34,11 @@ export function init(shadowRoot) {
 
     // initial check for displaying a virtual keyboard, 
     // must change if there is touch BUT also a physical keyboard
-
-    let useTouch = navigator.maxTouchPoints > 0;
+    let useTouch = navigator.maxTouchPoints > 0; // || window.screen.width < 700;  @TODO orientation change
     let checkedKeyboardAPI = false;
+    if (useTouch) {
+        main.classList.add('touch');
+    }
 
     //@TODO we don't need the vocab file for displaying a generated crossword
     Promise.all(gridFiles.map(file => fetch(file)))
@@ -236,7 +238,7 @@ export function init(shadowRoot) {
             }
 
             //If a keydown event has been sent, then the user has keyboard => we can remove virtual keyboard and touch
-            keyboard.classList.remove('touch');
+            main.classList.remove('touch'); // ??????????????
             useTouch = false;
 
         }, true);
@@ -294,10 +296,12 @@ export function init(shadowRoot) {
 
         if (!useTouch) {
             // browser supports multi-touch
-            keyboard.classList.remove('touch');
+            main.classList.remove('touch')
+
 
         } else {
-            keyboard.classList.add('touch');
+            main.classList.add('touch');
+
             console.log('touch');
 
             // Manage keyDown events on the virtual keyboard        
@@ -439,7 +443,7 @@ export function init(shadowRoot) {
 
     function displayTouchClues(clues, actionInstance) {
         const cluesDiv = shadowRoot.querySelector('.touchClues');
-        const cluesText = shadowRoot.querySelector('.clueText .container');
+        const cluesText = shadowRoot.querySelector('.clueText .textContainer');
         const [leftnav, rightnav] = shadowRoot.querySelectorAll('.touchClues .chevron');
 
         // cluesDiv.setAttribute('data-dir', actionInstance.direction);
@@ -499,8 +503,6 @@ export function init(shadowRoot) {
             rightnav.addEventListener('mouseup', reset, true);
         }
 
-        cluesDiv.classList.add('touch');
-        touchControls.classList.add('touch');
     }
 
 
