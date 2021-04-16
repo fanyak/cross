@@ -306,14 +306,19 @@ export function init(shadowRoot) {
 
             // Manage keyDown events on the virtual keyboard        
             const keydown = actionInstance.keydown.bind(actionInstance);
+            const moveIntoView = actionInstance.moveIntoView.bind(actionInstance);
+            const reset = actionInstance.reset.bind(actionInstance, board);
+
 
             const handleKeyEvent = (evt) => {
 
                 // handle virtual keyboar animations
                 evt.target.addEventListener('animationend', toggleKeyPressClass, true);
 
-                keydown(extractKeyEvent(evt));
-            }
+                keydown(extractKeyEvent(evt)); // syncrhronous event inside the eventCallback
+                // have to reset after moveIntoView
+                moveIntoView(board); // move to where the keydown event happend if we have zoomed
+            };
 
             Promise.resolve(createKeys(keyboard))
                 .then((_) => {
@@ -324,7 +329,7 @@ export function init(shadowRoot) {
                     } else {
                         // add Touch Event Listener
                         keyboard.addEventListener('touchstart', handleKeyEvent, true);
-                        // might be using a mouse with a touch enambled device that doesn't use a keyboard? eg. Microsoft surface?
+                        //might be using a mouse with a touch enambled device that doesn't use a keyboard? eg. Microsoft surface?
                         keyboard.addEventListener('mousedown', handleKeyEvent, true);
                     }
 
@@ -446,11 +451,9 @@ export function init(shadowRoot) {
         const cluesText = shadowRoot.querySelector('.clueText .textContainer');
         const [leftnav, rightnav] = shadowRoot.querySelectorAll('.touchClues .chevron');
 
-        // cluesDiv.setAttribute('data-dir', actionInstance.direction);
-        // cluesText.setAttribute('data-clue-index', 1);
-
         const changeDirectionFunction = actionInstance.changeDirection.bind(actionInstance);
         const keydown = actionInstance.keydown.bind(actionInstance);
+        const moveIntoView = actionInstance.moveIntoView.bind(actionInstance)
         const reset = actionInstance.reset.bind(actionInstance, board);
 
 
@@ -463,14 +466,7 @@ export function init(shadowRoot) {
             keydown(synthesizedEvent); // this should be synchronously dispatched!
 
             // the selected cell sould be set synchronously by the syncrhonous keydown call above
-            if (actionInstance.zoomLevel > 1 && !actionInstance.movePending) {
-                const { x, y } = actionInstance.selected.getBoundingClientRect();
-                const diffX = actionInstance.lastHoldPosition[0] - x + (window.screen.availWidth / 2);
-                const diffY = actionInstance.lastHoldPosition[1] - y + (window.screen.availHeight / 4);;
-                const moveTo = actionInstance.touchMove.bind(actionInstance, board, diffX, diffY);
-                actionInstance.movePending = true;
-                window.requestAnimationFrame(moveTo);
-            }
+            moveIntoView(board);
         };
 
         for (let direction in clues) {
@@ -490,17 +486,11 @@ export function init(shadowRoot) {
         if (window.PointerEvent) {
             leftnav.addEventListener('pointerdown', navigationFunction, true);
             rightnav.addEventListener('pointerdown', navigationFunction, true);
-            leftnav.addEventListener('pointerup', reset, true);
-            rightnav.addEventListener('pointerup', reset, true);
         } else {
             leftnav.addEventListener('touchstart', navigationFunction, true);
             rightnav.addEventListener('touchstart', navigationFunction, true);
-            leftnav.addEventListener('touchend', reset, true);
-            rightnav.addEventListener('touchend', reset, true);
             leftnav.addEventListener('mousedown', navigationFunction, true);
             rightnav.addEventListener('mousedown', navigationFunction, true);
-            leftnav.addEventListener('mouseup', reset, true);
-            rightnav.addEventListener('mouseup', reset, true);
         }
 
     }

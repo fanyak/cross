@@ -721,6 +721,37 @@ class Action {
         this.movePending = false;
     }
 
+    moveIntoView(src) {
+        // the selected cell sould be set synchronously by the syncrhonous keydown call above
+        if (this.zoomLevel > 1 && !this.movePending) {
+            const { x, y, width, height } = this.selected.getBoundingClientRect();
+            const keyBoardYPos = this.shadowRoot.querySelector('main.touch .touchControls').getBoundingClientRect().height; //;
+            const { availWidth, availHeight } = window.screen;
+            let [resetX, resetY] = [...this.position];
+
+            if (x < width) {
+                resetX = resetX - x + width + 10;
+            } else if (x > availWidth - width) { // if we have moved from the original (right = width)
+                resetX = resetX - (x - availWidth) - width - 10;
+            }
+            if (y < 0) {
+                resetY = resetY - y + height + 10;
+            }
+            if (y > keyBoardYPos) {
+                resetY = resetY - (y - keyBoardYPos) + height;
+            }
+
+            const moveTo = this.touchMove.bind(this, src, resetX, resetY);
+
+            // do this here instead of reset
+            this.position = [resetX, resetY];
+
+            this.movePending = true;
+            window.requestAnimationFrame(moveTo);
+        }
+
+    }
+
 
     // this may be called before a previously scheduled RAF - the Browswer goes to render steps between or after tasks
     reset(src, evt) {
@@ -950,7 +981,8 @@ class Action {
 const qwerty = [
     ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
     ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-    ['Z', 'X', 'C', 'V', 'B', 'N', 'M', '&#9003;']
+    ['Z', 'X', 'C', 'V', 'B', 'N', 'M', '&#9003;'],
+    // ['&larr;', '&uarr;', '&rarr;', '&darr;']
 ];
 
 function createKeys(board) {
@@ -967,6 +999,9 @@ function createKeys(board) {
             if (key == '&#9003;') {
                 btn.classList.add('backspace');
             }
+            // if (['&larr;', '&uarr;', '&rarr;', '&darr;'].includes(key)) {
+            //     btn.classList.add('navigation');
+            // }
             btn.setAttribute('role', 'button');
             group.appendChild(btn);
         }
@@ -1296,13 +1331,18 @@ function init(shadowRoot) {
 
             // Manage keyDown events on the virtual keyboard        
             const keydown = actionInstance.keydown.bind(actionInstance);
+            const moveIntoView = actionInstance.moveIntoView.bind(actionInstance);
+            actionInstance.reset.bind(actionInstance, board);
+
 
             const handleKeyEvent = (evt) => {
 
                 // handle virtual keyboar animations
                 evt.target.addEventListener('animationend', toggleKeyPressClass, true);
 
-                keydown(extractKeyEvent(evt));
+                keydown(extractKeyEvent(evt)); // syncrhronous event inside the eventCallback
+                // have to reset after moveIntoView
+                moveIntoView(board); // move to where the keydown event happend if we have zoomed
             };
 
             Promise.resolve(createKeys(keyboard))
@@ -1314,7 +1354,7 @@ function init(shadowRoot) {
                     } else {
                         // add Touch Event Listener
                         keyboard.addEventListener('touchstart', handleKeyEvent, true);
-                        // might be using a mouse with a touch enambled device that doesn't use a keyboard? eg. Microsoft surface?
+                        //might be using a mouse with a touch enambled device that doesn't use a keyboard? eg. Microsoft surface?
                         keyboard.addEventListener('mousedown', handleKeyEvent, true);
                     }
 
@@ -1435,12 +1475,10 @@ function init(shadowRoot) {
         const cluesText = shadowRoot.querySelector('.clueText .textContainer');
         const [leftnav, rightnav] = shadowRoot.querySelectorAll('.touchClues .chevron');
 
-        // cluesDiv.setAttribute('data-dir', actionInstance.direction);
-        // cluesText.setAttribute('data-clue-index', 1);
-
         const changeDirectionFunction = actionInstance.changeDirection.bind(actionInstance);
         const keydown = actionInstance.keydown.bind(actionInstance);
-        const reset = actionInstance.reset.bind(actionInstance, board);
+        const moveIntoView = actionInstance.moveIntoView.bind(actionInstance);
+        actionInstance.reset.bind(actionInstance, board);
 
 
         const navigationFunction = function (evt) {
@@ -1452,13 +1490,7 @@ function init(shadowRoot) {
             keydown(synthesizedEvent); // this should be synchronously dispatched!
 
             // the selected cell sould be set synchronously by the syncrhonous keydown call above
-            if (actionInstance.zoomLevel > 1 && !actionInstance.movePending) {
-                const { x, y } = actionInstance.selected.getBoundingClientRect();
-                const diffX = actionInstance.lastHoldPosition[0] - x + (window.screen.availWidth / 2);
-                const diffY = actionInstance.lastHoldPosition[1] - y + (window.screen.availHeight / 4);                const moveTo = actionInstance.touchMove.bind(actionInstance, board, diffX, diffY);
-                actionInstance.movePending = true;
-                window.requestAnimationFrame(moveTo);
-            }
+            moveIntoView(board);
         };
 
         for (let direction in clues) {
@@ -1478,17 +1510,11 @@ function init(shadowRoot) {
         if (window.PointerEvent) {
             leftnav.addEventListener('pointerdown', navigationFunction, true);
             rightnav.addEventListener('pointerdown', navigationFunction, true);
-            leftnav.addEventListener('pointerup', reset, true);
-            rightnav.addEventListener('pointerup', reset, true);
         } else {
             leftnav.addEventListener('touchstart', navigationFunction, true);
             rightnav.addEventListener('touchstart', navigationFunction, true);
-            leftnav.addEventListener('touchend', reset, true);
-            rightnav.addEventListener('touchend', reset, true);
             leftnav.addEventListener('mousedown', navigationFunction, true);
             rightnav.addEventListener('mousedown', navigationFunction, true);
-            leftnav.addEventListener('mouseup', reset, true);
-            rightnav.addEventListener('mouseup', reset, true);
         }
 
     }
@@ -4056,7 +4082,7 @@ class CrossWordElement extends LitElement {
         position: relative;
         display:flex;
         flex-direction: column;
-        height: 90vh; /* TODO!!!!!!!!!!!! */
+        height: 90vh; /* account for statusBarHeight */
         width: 100%; /* percentage of the container the app is placed in */
         max-width: 1150px;
         justify-content: space-between;
@@ -4069,7 +4095,7 @@ class CrossWordElement extends LitElement {
       }
 
       main.touch > div.container {
-        max-height: 90vh;
+        max-height: 90vh; /* account for statusBarHeight - TODO !! */
       }
       
       article[aria-label="puzzle game"] {
@@ -4091,7 +4117,7 @@ class CrossWordElement extends LitElement {
       }
 
       main.touch article[aria-label="puzzle game"] {
-        height: auto;  /* for touch this is defined by puzzle grid height = 60vh*/
+        height: auto;  /* for touch this is defined by puzzle grid height = 55vh*/
         max-height: auto;
         min-height: auto;
       }
@@ -4119,7 +4145,7 @@ class CrossWordElement extends LitElement {
       }
 
       main.touch section[aria-label="puzzle grid"] {
-        height: 60vh;
+        height: 55vh; /*was 60vh; */
         flex-basis: 100%; /* mobile first */
         max-width: 100%;
         overflow: hidden;
@@ -4224,10 +4250,17 @@ class CrossWordElement extends LitElement {
       svg {
         display: block;
         width: 100%;
-        max-width: 100%;
-        height: 550px;
+        max-width: 100%;       
         max-height: 100%;
         user-select: none;
+      }
+
+      main.touch svg {
+        /* height: 501px; */
+      }
+
+      main:not(.touch) svg {
+        height: 550px;
       }
 
       svg text {    
@@ -4372,9 +4405,9 @@ class CrossWordElement extends LitElement {
         flex-direction: column;
         justify-content: space-around;
         width: 100%; /* relative to the .touchControls div */
-        height: 22vh;
-        max-height: 22vh;
-        min-height: 22vh;
+        height: 27vh; /* was 22vh; */
+        max-height: 27vh; /* was 22vh; */
+        min-height: 27vh; /* was 22vh; */
         overflow-y: visible; 
         padding: 2px 0;
         background-color: lightgrey;
@@ -4391,7 +4424,7 @@ class CrossWordElement extends LitElement {
         max-height: 30%;
         overflow-y: visible;
         margin-top: 1%;
-      }
+      }      
         
       main.touch .keyboard .button {
         display: flex;
@@ -4413,9 +4446,18 @@ class CrossWordElement extends LitElement {
       }
         
       main.touch .keyboard .button.backspace {
-        font-size: 7.5vw;
+        font-size: 8.5vw;
+        padding-bottom: 5px;
         padding-right: 5px;
-        color: darkslategrey;
+        color: white;
+        width: 11%;
+        background-color: darkgrey;
+      }
+
+      main.touch .keyboard .button.navigation {
+        font-size: 8.5vw;
+        width: 25%;
+        background-color: darkgrey;
       }
         
       main.touch .keyboard .button.pressed {
@@ -4445,7 +4487,7 @@ class CrossWordElement extends LitElement {
       main.touch .touchClues {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: stretch; /*center;/*
         width: 100%; /* relative to touchControls div */
         max-width: 100%;
         height: 7.5vh;
@@ -4459,11 +4501,11 @@ class CrossWordElement extends LitElement {
       main.touch .touchClues span.chevron {
         flex-grow: 1;
         font-size: 15vw; 
-        line-height: 0.6;
-        padding-bottom: 1.3vw;
+        line-height: 0.8;
         text-align: center;
         box-sizing: border-box;
         color: white;
+        background-color: darkgrey;
       }
         
       main.touch .touchClues span.chevron.left {
@@ -4599,6 +4641,7 @@ class CrossWordElement extends LitElement {
   firstUpdated() {
     super.firstUpdated();
 
+    // create the view
     init(this.shadowRoot);
 
     const { width, height, x, y } = this.parentElement.getBoundingClientRect();
@@ -4609,6 +4652,7 @@ class CrossWordElement extends LitElement {
     const cls = width > 700 ? `row` : `column`;
     this.shadowRoot.querySelector(`main article[aria-label="puzzle game"]`).classList.add(cls);
 
+    // Event to trigger update
     let newMessage = new CustomEvent('load-completed', {
       detail: { message: 'load completed' }
     });

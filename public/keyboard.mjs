@@ -1,7 +1,8 @@
 const qwerty = [
     ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
     ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-    ['Z', 'X', 'C', 'V', 'B', 'N', 'M', '&#9003;']
+    ['Z', 'X', 'C', 'V', 'B', 'N', 'M', '&#9003;'],
+    // ['&larr;', '&uarr;', '&rarr;', '&darr;']
 ];
 
 export function createKeys(board) {
@@ -18,6 +19,9 @@ export function createKeys(board) {
             if (key == '&#9003;') {
                 btn.classList.add('backspace');
             }
+            // if (['&larr;', '&uarr;', '&rarr;', '&darr;'].includes(key)) {
+            //     btn.classList.add('navigation');
+            // }
             btn.setAttribute('role', 'button');
             group.appendChild(btn);
         }

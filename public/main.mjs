@@ -25,7 +25,7 @@ class CrossWordElement extends LitElement {
         position: relative;
         display:flex;
         flex-direction: column;
-        height: 90vh; /* TODO!!!!!!!!!!!! */
+        height: 90vh; /* account for statusBarHeight */
         width: 100%; /* percentage of the container the app is placed in */
         max-width: 1150px;
         justify-content: space-between;
@@ -38,7 +38,7 @@ class CrossWordElement extends LitElement {
       }
 
       main.touch > div.container {
-        max-height: 90vh;
+        max-height: 90vh; /* account for statusBarHeight - TODO !! */
       }
       
       article[aria-label="puzzle game"] {
@@ -60,7 +60,7 @@ class CrossWordElement extends LitElement {
       }
 
       main.touch article[aria-label="puzzle game"] {
-        height: auto;  /* for touch this is defined by puzzle grid height = 60vh*/
+        height: auto;  /* for touch this is defined by puzzle grid height = 55vh*/
         max-height: auto;
         min-height: auto;
       }
@@ -88,7 +88,7 @@ class CrossWordElement extends LitElement {
       }
 
       main.touch section[aria-label="puzzle grid"] {
-        height: 60vh;
+        height: 55vh; /*was 60vh; */
         flex-basis: 100%; /* mobile first */
         max-width: 100%;
         overflow: hidden;
@@ -193,10 +193,17 @@ class CrossWordElement extends LitElement {
       svg {
         display: block;
         width: 100%;
-        max-width: 100%;
-        height: 550px;
+        max-width: 100%;       
         max-height: 100%;
         user-select: none;
+      }
+
+      main.touch svg {
+        /* height: 501px; */
+      }
+
+      main:not(.touch) svg {
+        height: 550px;
       }
 
       svg text {    
@@ -341,9 +348,9 @@ class CrossWordElement extends LitElement {
         flex-direction: column;
         justify-content: space-around;
         width: 100%; /* relative to the .touchControls div */
-        height: 22vh;
-        max-height: 22vh;
-        min-height: 22vh;
+        height: 27vh; /* was 22vh; */
+        max-height: 27vh; /* was 22vh; */
+        min-height: 27vh; /* was 22vh; */
         overflow-y: visible; 
         padding: 2px 0;
         background-color: lightgrey;
@@ -360,7 +367,7 @@ class CrossWordElement extends LitElement {
         max-height: 30%;
         overflow-y: visible;
         margin-top: 1%;
-      }
+      }      
         
       main.touch .keyboard .button {
         display: flex;
@@ -382,9 +389,18 @@ class CrossWordElement extends LitElement {
       }
         
       main.touch .keyboard .button.backspace {
-        font-size: 7.5vw;
+        font-size: 8.5vw;
+        padding-bottom: 5px;
         padding-right: 5px;
-        color: darkslategrey;
+        color: white;
+        width: 11%;
+        background-color: darkgrey;
+      }
+
+      main.touch .keyboard .button.navigation {
+        font-size: 8.5vw;
+        width: 25%;
+        background-color: darkgrey;
       }
         
       main.touch .keyboard .button.pressed {
@@ -414,7 +430,7 @@ class CrossWordElement extends LitElement {
       main.touch .touchClues {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: stretch; /*center;/*
         width: 100%; /* relative to touchControls div */
         max-width: 100%;
         height: 7.5vh;
@@ -428,11 +444,11 @@ class CrossWordElement extends LitElement {
       main.touch .touchClues span.chevron {
         flex-grow: 1;
         font-size: 15vw; 
-        line-height: 0.6;
-        padding-bottom: 1.3vw;
+        line-height: 0.8;
         text-align: center;
         box-sizing: border-box;
         color: white;
+        background-color: darkgrey;
       }
         
       main.touch .touchClues span.chevron.left {
