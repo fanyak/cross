@@ -722,15 +722,17 @@ class Action {
     }
 
     moveIntoView(src) {
+        console.log(11111);
         // the selected cell sould be set synchronously by the syncrhonous keydown call above
         if (this.zoomLevel > 1 && !this.movePending) {
+            // the position of the cell relative to the Viewport, and its height
             const { x, y, width, height } = this.selected.getBoundingClientRect();
             const keyBoardYPos = this.shadowRoot.querySelector('main.touch .touchControls').getBoundingClientRect().height; //;
             const { availWidth, availHeight } = window.screen;
             let [resetX, resetY] = [...this.position];
 
             if (x < width) {
-                resetX = resetX - x + width + 10;
+                resetX = resetX - x + height + 10;
             } else if (x > availWidth - width) { // if we have moved from the original (right = width)
                 resetX = resetX - (x - availWidth) - width - 10;
             }
@@ -824,16 +826,15 @@ class Action {
                     return;
                 }
 
-                if (left < -(width - availWidth)) {
+                // originally: right = width                
+                if (left < -(width - availWidth)) { // if we have moved all the overflow to the left and passed that
                     resetX = ((availWidth - width) / 2) - (10);
-                } else if (right > width) { // if we have moved from the original (right = width)
+                } else if (right > width) {
                     resetX = Math.abs(((availWidth - width) / 2)) + 10;
                 }
 
-                // console.log(top, height, bottom, availHeight);
-
-                if (bottom > height) { // if we moved down
-                    resetY = Math.abs((availHeight - (keyBoardHeight + 10 + statusBarHeight) - height) / 2); //relative to the original
+                if (bottom > height) { // if we moved down. originally bottom = height
+                    resetY = Math.abs((availHeight - (keyBoardHeight + 10 + statusBarHeight) - height) / 2);
                 } else if (top < -(height - statusBarHeight)) { // don't pass over half of the screen
                     resetY = ((availHeight - statusBarHeight - height) / 2);
                 }

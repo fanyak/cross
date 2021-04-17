@@ -444,23 +444,27 @@ export class Action {
     }
 
     moveIntoView(src) {
+
         // the selected cell sould be set synchronously by the syncrhonous keydown call above
         if (this.zoomLevel > 1 && !this.movePending) {
-            const { x, y, cellWidth, cellHeight } = this.selected.getBoundingClientRect();
+            // the position of the cell relative to the Viewport, and its height
+            const { x, y, width, height } = this.selected.getBoundingClientRect();
             const keyBoardYPos = this.shadowRoot.querySelector('main.touch .touchControls').getBoundingClientRect().height; //;
             const { availWidth, availHeight } = window.screen;
+
+            // we are moving based on the current position of the board.  This is different from when we reset!!!!!
             let [resetX, resetY] = [...this.position];
 
-            if (x < cellWidth) {
-                resetX = resetX - x + cellWidth + 10;
-            } else if (x > availWidth - cellWidth) { // if we have moved from the original (right = width)
-                resetX = resetX - (x - availWidth) - cellWidth - 10;
+            if (x < width) {
+                resetX = resetX - x + height + 10;
+            } else if (x > availWidth - width) { // if we have moved from the original (right = width)
+                resetX = resetX - (x - availWidth) - width - 10;
             }
             if (y < 0) {
-                resetY = resetY - y + cellHeight + 10;
+                resetY = resetY - y + height + 10;
             }
             if (y > keyBoardYPos) {
-                resetY = resetY - (y - keyBoardYPos) + cellHeight;
+                resetY = resetY - (y - keyBoardYPos) + height;
             }
 
             const moveTo = this.touchMove.bind(this, src, resetX, resetY);
@@ -549,7 +553,7 @@ export class Action {
                 // originally: right = width                
                 if (left < -(width - availWidth)) { // if we have moved all the overflow to the left and passed that
                     resetX = ((availWidth - width) / 2) - (10);
-                } else if (right > width) { 
+                } else if (right > width) {
                     resetX = Math.abs(((availWidth - width) / 2)) + 10;
                 }
 
