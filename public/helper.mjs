@@ -30,6 +30,12 @@ export function getCellCoords(cell, width, height) {
   return ([i, j]);
 }
 
+export function mapCellInVariable(fn) {
+  return function (cell, variable) {
+    return fn(cell, variable);
+  };
+}
+
 export function fillWhite(cell) {
   cell.setAttributeNS(null, 'fill', '#fff');
 }

@@ -1,5 +1,5 @@
 import { Crossword, Variable } from './cross.mjs';
-import { not, createUserActivationAction, createUserActionEnd } from './helper.mjs';
+import { not, createUserActivationAction, createUserActionEnd, mapCellInVariable } from './helper.mjs';
 import { Action } from './action.mjs';
 import { createKeys, extractKeyEvent, toggleKeyPressClass } from './keyboard.mjs';
 
@@ -23,6 +23,8 @@ export function init(shadowRoot) {
 
     //startOfWordCells: Array of Objects: {cell, startOfWordVariable }[]
     const startOfWordCells = []; // this is in the order of the word indices for the display cells
+    // {[cellId]:{dir1:{}, dir2:{}} }
+    const cellIdToVariableDict = {}
 
     const svgNamespace = 'http://www.w3.org/2000/svg';
 
@@ -121,10 +123,10 @@ export function init(shadowRoot) {
 
             const row = crossword.structure[i];
 
-            const cellGroup = document.createElementNS(svgNamespace, 'g');
-            cellGroup.setAttributeNS(null, 'role', 'row');
-
             for (let j = 0; j < crossword.width; j++) {
+
+                const cellGroup = document.createElementNS(svgNamespace, 'g');
+                cellGroup.setAttributeNS(null, 'role', 'cell');
 
                 const wordIndex = document.createElementNS(svgNamespace, 'text');
                 wordIndex.setAttributeNS(null, 'x', (j * cellSize) + padding + wordIndexPaddingLeft);
@@ -136,12 +138,13 @@ export function init(shadowRoot) {
 
 
                 const letter = document.createElementNS(svgNamespace, 'text');
-                letter.setAttributeNS(null, 'x', (j * cellSize) + padding + letterPaddingLeft);
+                letter.setAttributeNS(null, 'x', (j * cellSize) + padding + cellSize / 2);
                 letter.setAttributeNS(null, 'y', (i * cellSize) + padding + letterPaddingTop);
                 letter.setAttributeNS(null, 'stroke', 'black');
                 letter.setAttributeNS(null, 'stroke-width', '0.3');
                 letter.setAttributeNS(null, 'id', `letter-id-${i * crossword.width + j}`);
                 letter.setAttributeNS(null, 'style', `font-size: ${letterFontSize}px`);
+                letter.setAttributeNS(null, 'text-anchor', 'middle');
 
                 // Help for Aria 
                 const ariaLetter = document.createElementNS(svgNamespace, 'text');
@@ -150,7 +153,12 @@ export function init(shadowRoot) {
                 letter.appendChild(ariaLetter);
 
                 const cell = document.createElementNS(svgNamespace, 'rect');
+
+                // Define an id for all cells
                 cell.setAttributeNS(null, 'id', `cell-id-${i * crossword.width + j}`);
+
+                // set up a map from Id to variables
+                cellIdToVariableDict[`cell-id-${i * crossword.width + j}`] = {};
 
                 if (!row[j]) {
                     rectWidth = cellSize, rectHeight = rectWidth;
@@ -159,15 +167,25 @@ export function init(shadowRoot) {
                     cell.setAttributeNS(null, 'fill', '#333');
                     cell.classList.add('black');
                 } else {
-                    cell.setAttributeNS(null, 'id', `cell-id-${i * crossword.width + j}`);
-                    const selectedVariables = variables.filter(v => v.cells.find(cell => Variable.isSameCell(cell, [i, j])));
-                    for (let selectedVariable of selectedVariables) {
-                        cell.setAttributeNS(null, `data-variable-${selectedVariable.direction}`, `${selectedVariable.i}-${selectedVariable.j}`);
-                    }
+                    // get ALL the words in ALL the directions to which this cell belongs
+                    variables.forEach((v) => {
+                        const cellIndex = v.cells.findIndex(cell => Variable.isSameCell(cell, [i, j]));
+                        if (cellIndex > -1) {
+                            // set the data-variable attribute for each direction that the cell exists in a word
+                            cell.setAttributeNS(null, `data-variable-${v.direction}`, `${v.i}-${v.j}`);
+                            // complete the celId map
+                            cellIdToVariableDict[`cell-id-${i * crossword.width + j}`][v.direction] =
+                                { 'variable': v, 'cellNumber': cellIndex, 'letter': null, 'isStartOfWord': cellIndex == 0 };
+                            return true;
+                        }
+                        return false;
+                    });
+
                     rectWidth = cellSize, rectHeight = rectWidth; // account for stroke width of the grid
                     cell.setAttributeNS(null, 'x', (j * cellSize) + padding); // account for stroke width of the grid
                     cell.setAttributeNS(null, 'y', (i * cellSize) + padding);
                     cell.setAttributeNS(null, 'fill', '#fff'); // should be transparent? => fill = none
+
                     //@TODO: precalculate this??? ([direction[counter]: ])
                     const startOfWordVariable = variables.find(v => v.i == i && v.j == j);
                     if (startOfWordVariable) {
@@ -175,6 +193,7 @@ export function init(shadowRoot) {
                         startOfWordCells.push({ cell, startOfWordVariable });
                         counter++;
                     }
+
                 }
                 cell.setAttributeNS(null, 'width', rectWidth);
                 cell.setAttributeNS(null, 'height', rectHeight);
@@ -188,7 +207,6 @@ export function init(shadowRoot) {
                 cellGroup.appendChild(letter);
 
 
-                //letter.textContent = 'A';            
                 rowGroup.appendChild(cellGroup);
             }
         }
@@ -198,7 +216,7 @@ export function init(shadowRoot) {
 
     function addActions(crossword) {
         const direction = startOfWordCells[0].startOfWordVariable.direction;
-        const action = new Action(crossword, direction, startOfWordCells, shadowRoot);
+        const action = new Action(crossword, direction, startOfWordCells, cellIdToVariableDict, shadowRoot);
         const activate = action.activate.bind(action);
         const keydown = action.keydown.bind(action);
         const touchAction = action.touchAction.bind(action, board);
@@ -451,7 +469,7 @@ export function init(shadowRoot) {
         const cluesText = shadowRoot.querySelector('.clueText .textContainer');
         const [leftnav, rightnav] = shadowRoot.querySelectorAll('.touchClues .chevron');
 
-        const changeDirectionFunction = actionInstance.changeDirection.bind(actionInstance);
+        const changeDirectionFunction = actionInstance.changeDirection.bind(actionInstance, actionInstance.selected);
         const keydown = actionInstance.keydown.bind(actionInstance);
         const moveIntoView = actionInstance.moveIntoView.bind(actionInstance)
         const reset = actionInstance.reset.bind(actionInstance, board);

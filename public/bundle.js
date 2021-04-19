@@ -286,7 +286,7 @@ const { ACROSS, DOWN, isSameCell } = Variable;
 
 class Action {
 
-    constructor(crossword, direction, startOfWordCells, shadowRoot) {
+    constructor(crossword, direction, startOfWordCells, cellIdToVariableDict, shadowRoot) {
         this.crossword = crossword;
         this.rafPending = false;
 
@@ -297,6 +297,7 @@ class Action {
 
         // these are static once the crossword is complete, don't recalculate it every time  
         this.startOfWordCells = startOfWordCells;  // this is ordered by word index for the display cells    
+        this.cellIdToVariableDict = cellIdToVariableDict;
         this.variables = Array.from(crossword.variables);
         const cells = [...this.shadowRoot.querySelectorAll('svg [id*="cell-id"]')];
         this.activeCells = cells.filter(not(isBlackCell));
@@ -348,12 +349,13 @@ class Action {
             const content = document.createTextNode(letter);
             text.appendChild(content);
             hiddenText.textContent = letter;
+            this.cellIdToVariableDict[`cell-id-${cellNumber}`][this.direction].letter = letter;
 
             // activate the next empty cell
-            if (this.direction == 'across') {
-                this.changeActiveCell(cellNumber, 1);
+            if (this.direction == ACROSS) {
+                this.activateWord(cellNumber, 1);
             } else {
-                this.changeActiveCell(cellNumber, 15);
+                this.activateWord(cellNumber, 15);
             }
 
             return;
@@ -365,7 +367,7 @@ class Action {
 
             if (evt.key == 'Backspace') {
                 let next;
-                if (this.direction == 'across') {
+                if (this.direction == ACROSS) {
                     next = this.changeActiveCell(cellNumber, -1);
                 } else {
                     next = this.changeActiveCell(cellNumber, -15);
@@ -405,6 +407,7 @@ class Action {
 
         if (evt.key == 'Tab') {
             let next;
+            // there should always exist a startOfWord cell that this.selected belongs to in this.direction
             const currentIndex = this.startOfWordCells.findIndex(({ cell }) => getCellVariable(cell, this.direction) == getCellVariable(target, this.direction));
             if (evt.shiftKey) {
                 // go back 1 word
@@ -417,7 +420,9 @@ class Action {
                 next = this.startOfWordCells[anchor + 1];
             }
             if (next) {
+                // ensure that this.direction is always the direction in which the next exists in a word (might exist in 2)
                 this.direction = next.startOfWordVariable.direction;
+
                 // synchronous dispatch : https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/dispatchEvent
                 // :dispatchEvent() invokes event handlers synchronously
 
@@ -503,7 +508,15 @@ class Action {
                 return;
             }
 
-            // doubleclicking to change direction (if not synthetic event (clicked from the list of clues))
+            // if the new candidate selected doesn't belong in any word in the current this.direction
+            // we have to switch direction to get the only direction in which the selected belongs
+            if (!getCellVariable(el, this.direction)) {
+                this.changeDirection();
+                return;
+            }
+
+            // doubleclicking to change direction
+            // IFF not synthetic event (eg. clicked from the list of clues) == there exists an endEvent)
             if (endEvent && this.selected && el.id == this.selected.id) {
                 this.changeDirection();
                 return;
@@ -551,10 +564,8 @@ class Action {
         const selectedCellVariable = getCellVariable(this.selected, this.direction).split('-'); //selected.getAttribute(`data-variable-${direction}`).split('-');
         const word = this.variables.find(v => isSameCell([v.i, v.j], selectedCellVariable) && v.direction == this.direction);
         const letterIndex = word.cells.findIndex(cell => isSameCell(selectedCellCoords, cell));
-
         const wordNumber = this.startOfWordCells.findIndex(({ cell }) => getCellVariable(cell, this.direction) == getCellVariable(this.selected, this.direction));
         const clueNumber = wordNumber + 1;
-
         // make updates
         this.updateCluesList(clueNumber, this.direction);
         this.activeCells.forEach(this.makeCellAriaLabel.bind(this, word, letterIndex, clueNumber));
@@ -564,6 +575,60 @@ class Action {
         const wordLengthDesc = `${word.length} letters`;
         const prefix = `${this.direction[0]}`.toUpperCase();
         cell.setAttributeNS(null, 'aria-label', `${prefix}${clueNumber}: clue, Answer: ${wordLengthDesc}, Letter ${letterIndex + 1}`);
+    }
+
+    // Activate either the next cell in the same word or the 1st cell in the next word if we reached the end of the word
+    // in next is a new word, it is in the same direction as the one we are on
+    activateWord(cellNumber, diff) {
+
+        // initially move by diff
+        let nextId = cellNumber + diff;
+        let next = this.shadowRoot.querySelector(`#cell-id-${nextId}`);
+
+        while (this.cellIdToVariableDict[`cell-id-${nextId}`] && !isBlackCell(next) &&
+            (this.cellIdToVariableDict[`cell-id-${nextId}`][ACROSS].letter ||
+                this.cellIdToVariableDict[`cell-id-${nextId}`][DOWN].letter)
+        ) {
+            this.activateWord(nextId, diff);
+            return;
+        }
+
+        // check if we reached the end of the word OR the end of the grid.  
+        // If Yes, then change word either to the same direction if a word exists, or start from the beginning on the other direction
+        if ((next && isBlackCell(next)) || !next) {
+
+            // there should always exist a startOfWordCell to which this.selected belongs in this.direction
+            // @TODO TEST THIS!!
+            const currentWordIndex = this.startOfWordCells.findIndex(({ cell }) =>
+                getCellVariable(cell, this.direction) == getCellVariable(this.selected, this.direction));
+
+            // getCellVariable(cell, this.direction) will return if the cell belongs to a world
+            // the the cell that is startOfWord but that is not a cell in the same word as the selected
+            const nextWord = this.startOfWordCells.slice(currentWordIndex + 1).find(({ cell, startOfWordVariable }) =>
+                getCellVariable(cell, this.direction) &&
+                this.cellIdToVariableDict[`${cell.id}`][this.direction].isStartOfWord);
+
+
+            if (nextWord) {
+                next = nextWord.cell;
+            } else {
+                // if there are no more words in this direction, then change direction
+                const [changeDirection] = [ACROSS, DOWN].filter(dir => dir !== this.direction);
+                const firstWord = this.startOfWordCells.find(({ cell, startOfWordVariable }) =>
+                    getCellVariable(cell, changeDirection)); // this will return if it belongs to a variable on the change direction
+                next = firstWord.cell;
+                // In case next has both directions, then the direction will not switch to activate
+                // in this case, force a change of Direction
+                this.changeDirection(next);
+                return;
+                // in case next has both directions, then the activate event will not switch
+            }
+        }
+
+        // next is either the next cell in the same word or the 1st cell in the next word in the same direction
+        next.dispatchEvent(new Event(createUserActivationAction()), { bubbles: true, });
+
+        return next;
     }
 
     changeActiveCell(cellNumber, diff) {
@@ -590,17 +655,32 @@ class Action {
         const content = [...text.childNodes].find(not(isHiddenNode));
         if (content) {
             text.removeChild(content);
+            this.cellIdToVariableDict[`${cellId}`][DOWN].letter = null;
+            this.cellIdToVariableDict[`${cellId}`][ACROSS].letter = null;
         }
         return ([text, hiddenText, content]);
     }
 
+    // Function overload: 
+    // If it is called from touch cluelist, it passed the selected and the touch event, 
+    // if it is called from activateWord, it passed the newTarget
+    // else it is called without arguments
 
-    changeDirection() {
+    // Toggel Direction
+    // @ newTarget is either passed or is presumed to be this.selected
+    changeDirection(newTarget, evt) {
+        // console.log(newTarget, evt);
         const [changeDirection] = [ACROSS, DOWN].filter(dir => dir !== this.direction);
-        this.direction = changeDirection;
-        const cell = this.selected;
-        this.selected = null; // prevent loop
-        cell.dispatchEvent(new Event(createUserActivationAction()), { bubbles: true });
+        const cell = newTarget || this.selected;
+        // check if the cell exist in a word on the other direction
+        // if it doesn't exist in another direction, just return,
+        // else, change direction
+        if (getCellVariable(cell, changeDirection)) {// this will return if the cell exists in a word on the changeDirection
+            this.direction = changeDirection;
+            this.selected = null; // prevent loop
+            cell.dispatchEvent(new Event(createUserActivationAction()), { bubbles: true });
+        }
+
     }
 
     // zoom and touchMove events
@@ -722,13 +802,15 @@ class Action {
     }
 
     moveIntoView(src) {
-        console.log(11111);
+
         // the selected cell sould be set synchronously by the syncrhonous keydown call above
         if (this.zoomLevel > 1 && !this.movePending) {
             // the position of the cell relative to the Viewport, and its height
             const { x, y, width, height } = this.selected.getBoundingClientRect();
             const keyBoardYPos = this.shadowRoot.querySelector('main.touch .touchControls').getBoundingClientRect().height; //;
             const { availWidth, availHeight } = window.screen;
+
+            // we are moving based on the current position of the board.  This is different from when we reset!!!!!
             let [resetX, resetY] = [...this.position];
 
             if (x < width) {
@@ -940,7 +1022,7 @@ class Action {
             const [previousDir, previousNum] = this.highlightedClue.split('-');
             this.shadowRoot.querySelector(`[data-dir='${previousDir}'] [data-li-clue-index ='${previousNum}']`).classList.remove('highlightedClue');
         }
-        const otherDirection = this.direction == 'across' ? 'down' : 'across';
+        const otherDirection = this.direction == ACROSS ? DOWN : ACROSS;
         const highlightedVariable = getCellVariable(this.selected, otherDirection); //selected.getAttribute(`data-variable-${direction}`).split('-');
         const highlightedClue = this.startOfWordCells.findIndex(({ cell }) => getCellVariable(cell, otherDirection) == highlightedVariable);
         // maybe there isn't a word on the other direction
@@ -1041,7 +1123,6 @@ function init(shadowRoot) {
     const padding = 3;
     const letterFontSize = 22;
     const indexSize = 11;
-    const letterPaddingLeft = cellSize * 0.25;
     const letterPaddingTop = cellSize * 0.85;
     const wordIndexPaddingLeft = padding / 1.5;
     const wordIndexPaddingTop = padding * 3.5;
@@ -1049,6 +1130,8 @@ function init(shadowRoot) {
 
     //startOfWordCells: Array of Objects: {cell, startOfWordVariable }[]
     const startOfWordCells = []; // this is in the order of the word indices for the display cells
+    // {[cellId]:{dir1:{}, dir2:{}} }
+    const cellIdToVariableDict = {};
 
     const svgNamespace = 'http://www.w3.org/2000/svg';
 
@@ -1147,10 +1230,10 @@ function init(shadowRoot) {
 
             const row = crossword.structure[i];
 
-            const cellGroup = document.createElementNS(svgNamespace, 'g');
-            cellGroup.setAttributeNS(null, 'role', 'row');
-
             for (let j = 0; j < crossword.width; j++) {
+
+                const cellGroup = document.createElementNS(svgNamespace, 'g');
+                cellGroup.setAttributeNS(null, 'role', 'cell');
 
                 const wordIndex = document.createElementNS(svgNamespace, 'text');
                 wordIndex.setAttributeNS(null, 'x', (j * cellSize) + padding + wordIndexPaddingLeft);
@@ -1162,12 +1245,13 @@ function init(shadowRoot) {
 
 
                 const letter = document.createElementNS(svgNamespace, 'text');
-                letter.setAttributeNS(null, 'x', (j * cellSize) + padding + letterPaddingLeft);
+                letter.setAttributeNS(null, 'x', (j * cellSize) + padding + cellSize / 2);
                 letter.setAttributeNS(null, 'y', (i * cellSize) + padding + letterPaddingTop);
                 letter.setAttributeNS(null, 'stroke', 'black');
                 letter.setAttributeNS(null, 'stroke-width', '0.3');
                 letter.setAttributeNS(null, 'id', `letter-id-${i * crossword.width + j}`);
                 letter.setAttributeNS(null, 'style', `font-size: ${letterFontSize}px`);
+                letter.setAttributeNS(null, 'text-anchor', 'middle');
 
                 // Help for Aria 
                 const ariaLetter = document.createElementNS(svgNamespace, 'text');
@@ -1176,7 +1260,12 @@ function init(shadowRoot) {
                 letter.appendChild(ariaLetter);
 
                 const cell = document.createElementNS(svgNamespace, 'rect');
+
+                // Define an id for all cells
                 cell.setAttributeNS(null, 'id', `cell-id-${i * crossword.width + j}`);
+
+                // set up a map from Id to variables
+                cellIdToVariableDict[`cell-id-${i * crossword.width + j}`] = {};
 
                 if (!row[j]) {
                     rectWidth = cellSize, rectHeight = rectWidth;
@@ -1185,15 +1274,25 @@ function init(shadowRoot) {
                     cell.setAttributeNS(null, 'fill', '#333');
                     cell.classList.add('black');
                 } else {
-                    cell.setAttributeNS(null, 'id', `cell-id-${i * crossword.width + j}`);
-                    const selectedVariables = variables.filter(v => v.cells.find(cell => Variable.isSameCell(cell, [i, j])));
-                    for (let selectedVariable of selectedVariables) {
-                        cell.setAttributeNS(null, `data-variable-${selectedVariable.direction}`, `${selectedVariable.i}-${selectedVariable.j}`);
-                    }
+                    // get ALL the words in ALL the directions to which this cell belongs
+                    variables.forEach((v) => {
+                        const cellIndex = v.cells.findIndex(cell => Variable.isSameCell(cell, [i, j]));
+                        if (cellIndex > -1) {
+                            // set the data-variable attribute for each direction that the cell exists in a word
+                            cell.setAttributeNS(null, `data-variable-${v.direction}`, `${v.i}-${v.j}`);
+                            // complete the celId map
+                            cellIdToVariableDict[`cell-id-${i * crossword.width + j}`][v.direction] =
+                                { 'variable': v, 'cellNumber': cellIndex, 'letter': null, 'isStartOfWord': cellIndex == 0 };
+                            return true;
+                        }
+                        return false;
+                    });
+
                     rectWidth = cellSize, rectHeight = rectWidth; // account for stroke width of the grid
                     cell.setAttributeNS(null, 'x', (j * cellSize) + padding); // account for stroke width of the grid
                     cell.setAttributeNS(null, 'y', (i * cellSize) + padding);
                     cell.setAttributeNS(null, 'fill', '#fff'); // should be transparent? => fill = none
+
                     //@TODO: precalculate this??? ([direction[counter]: ])
                     const startOfWordVariable = variables.find(v => v.i == i && v.j == j);
                     if (startOfWordVariable) {
@@ -1201,6 +1300,7 @@ function init(shadowRoot) {
                         startOfWordCells.push({ cell, startOfWordVariable });
                         counter++;
                     }
+
                 }
                 cell.setAttributeNS(null, 'width', rectWidth);
                 cell.setAttributeNS(null, 'height', rectHeight);
@@ -1214,7 +1314,6 @@ function init(shadowRoot) {
                 cellGroup.appendChild(letter);
 
 
-                //letter.textContent = 'A';            
                 rowGroup.appendChild(cellGroup);
             }
         }
@@ -1224,7 +1323,7 @@ function init(shadowRoot) {
 
     function addActions(crossword) {
         const direction = startOfWordCells[0].startOfWordVariable.direction;
-        const action = new Action(crossword, direction, startOfWordCells, shadowRoot);
+        const action = new Action(crossword, direction, startOfWordCells, cellIdToVariableDict, shadowRoot);
         const activate = action.activate.bind(action);
         const keydown = action.keydown.bind(action);
         const touchAction = action.touchAction.bind(action, board);
@@ -1476,7 +1575,7 @@ function init(shadowRoot) {
         const cluesText = shadowRoot.querySelector('.clueText .textContainer');
         const [leftnav, rightnav] = shadowRoot.querySelectorAll('.touchClues .chevron');
 
-        const changeDirectionFunction = actionInstance.changeDirection.bind(actionInstance);
+        const changeDirectionFunction = actionInstance.changeDirection.bind(actionInstance, actionInstance.selected);
         const keydown = actionInstance.keydown.bind(actionInstance);
         const moveIntoView = actionInstance.moveIntoView.bind(actionInstance);
         actionInstance.reset.bind(actionInstance, board);

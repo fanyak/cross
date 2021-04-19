@@ -8,7 +8,7 @@ const { ACROSS, DOWN, isSameCell } = Variable;
 
 export class Action {
 
-    constructor(crossword, direction, startOfWordCells, shadowRoot) {
+    constructor(crossword, direction, startOfWordCells, cellIdToVariableDict, shadowRoot) {
         this.crossword = crossword;
         this.rafPending = false;
 
@@ -19,6 +19,7 @@ export class Action {
 
         // these are static once the crossword is complete, don't recalculate it every time  
         this.startOfWordCells = startOfWordCells;  // this is ordered by word index for the display cells    
+        this.cellIdToVariableDict = cellIdToVariableDict;
         this.variables = Array.from(crossword.variables);
         const cells = [...this.shadowRoot.querySelectorAll('svg [id*="cell-id"]')];
         this.activeCells = cells.filter(not(isBlackCell));
@@ -70,12 +71,13 @@ export class Action {
             const content = document.createTextNode(letter);
             text.appendChild(content);
             hiddenText.textContent = letter;
+            this.cellIdToVariableDict[`cell-id-${cellNumber}`][this.direction].letter = letter;
 
             // activate the next empty cell
-            if (this.direction == 'across') {
-                this.changeActiveCell(cellNumber, 1);
+            if (this.direction == ACROSS) {
+                this.activateWord(cellNumber, 1);
             } else {
-                this.changeActiveCell(cellNumber, 15);
+                this.activateWord(cellNumber, 15);
             }
 
             return;
@@ -87,7 +89,7 @@ export class Action {
 
             if (evt.key == 'Backspace') {
                 let next;
-                if (this.direction == 'across') {
+                if (this.direction == ACROSS) {
                     next = this.changeActiveCell(cellNumber, -1);
                 } else {
                     next = this.changeActiveCell(cellNumber, -15);
@@ -127,6 +129,7 @@ export class Action {
 
         if (evt.key == 'Tab') {
             let next;
+            // there should always exist a startOfWord cell that this.selected belongs to in this.direction
             const currentIndex = this.startOfWordCells.findIndex(({ cell }) => getCellVariable(cell, this.direction) == getCellVariable(target, this.direction));
             if (evt.shiftKey) {
                 // go back 1 word
@@ -139,7 +142,9 @@ export class Action {
                 next = this.startOfWordCells[anchor + 1];
             }
             if (next) {
+                // ensure that this.direction is always the direction in which the next exists in a word (might exist in 2)
                 this.direction = next.startOfWordVariable.direction;
+
                 // synchronous dispatch : https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/dispatchEvent
                 // :dispatchEvent() invokes event handlers synchronously
 
@@ -225,7 +230,15 @@ export class Action {
                 return;
             }
 
-            // doubleclicking to change direction (if not synthetic event (clicked from the list of clues))
+            // if the new candidate selected doesn't belong in any word in the current this.direction
+            // we have to switch direction to get the only direction in which the selected belongs
+            if (!getCellVariable(el, this.direction)) {
+                this.changeDirection();
+                return;
+            }
+
+            // doubleclicking to change direction
+            // IFF not synthetic event (eg. clicked from the list of clues) == there exists an endEvent)
             if (endEvent && this.selected && el.id == this.selected.id) {
                 this.changeDirection();
                 return;
@@ -273,10 +286,8 @@ export class Action {
         const selectedCellVariable = getCellVariable(this.selected, this.direction).split('-'); //selected.getAttribute(`data-variable-${direction}`).split('-');
         const word = this.variables.find(v => isSameCell([v.i, v.j], selectedCellVariable) && v.direction == this.direction);
         const letterIndex = word.cells.findIndex(cell => isSameCell(selectedCellCoords, cell));
-
         const wordNumber = this.startOfWordCells.findIndex(({ cell }) => getCellVariable(cell, this.direction) == getCellVariable(this.selected, this.direction));
         const clueNumber = wordNumber + 1;
-
         // make updates
         this.updateCluesList(clueNumber, this.direction);
         this.activeCells.forEach(this.makeCellAriaLabel.bind(this, word, letterIndex, clueNumber));
@@ -286,6 +297,60 @@ export class Action {
         const wordLengthDesc = `${word.length} letters`;
         const prefix = `${this.direction[0]}`.toUpperCase();
         cell.setAttributeNS(null, 'aria-label', `${prefix}${clueNumber}: clue, Answer: ${wordLengthDesc}, Letter ${letterIndex + 1}`);
+    }
+
+    // Activate either the next cell in the same word or the 1st cell in the next word if we reached the end of the word
+    // in next is a new word, it is in the same direction as the one we are on
+    activateWord(cellNumber, diff) {
+
+        // initially move by diff
+        let nextId = cellNumber + diff;
+        let next = this.shadowRoot.querySelector(`#cell-id-${nextId}`);
+
+        while (this.cellIdToVariableDict[`cell-id-${nextId}`] && !isBlackCell(next) &&
+            (this.cellIdToVariableDict[`cell-id-${nextId}`][ACROSS].letter ||
+                this.cellIdToVariableDict[`cell-id-${nextId}`][DOWN].letter)
+        ) {
+            this.activateWord(nextId, diff);
+            return;
+        }
+
+        // check if we reached the end of the word OR the end of the grid.  
+        // If Yes, then change word either to the same direction if a word exists, or start from the beginning on the other direction
+        if ((next && isBlackCell(next)) || !next) {
+
+            // there should always exist a startOfWordCell to which this.selected belongs in this.direction
+            // @TODO TEST THIS!!
+            const currentWordIndex = this.startOfWordCells.findIndex(({ cell }) =>
+                getCellVariable(cell, this.direction) == getCellVariable(this.selected, this.direction));
+
+            // getCellVariable(cell, this.direction) will return if the cell belongs to a world
+            // the the cell that is startOfWord but that is not a cell in the same word as the selected
+            const nextWord = this.startOfWordCells.slice(currentWordIndex + 1).find(({ cell, startOfWordVariable }) =>
+                getCellVariable(cell, this.direction) &&
+                this.cellIdToVariableDict[`${cell.id}`][this.direction].isStartOfWord);
+
+
+            if (nextWord) {
+                next = nextWord.cell;
+            } else {
+                // if there are no more words in this direction, then change direction
+                const [changeDirection] = [ACROSS, DOWN].filter(dir => dir !== this.direction);
+                const firstWord = this.startOfWordCells.find(({ cell, startOfWordVariable }) =>
+                    getCellVariable(cell, changeDirection)); // this will return if it belongs to a variable on the change direction
+                next = firstWord.cell;
+                // In case next has both directions, then the direction will not switch to activate
+                // in this case, force a change of Direction
+                this.changeDirection(next);
+                return;
+                // in case next has both directions, then the activate event will not switch
+            }
+        }
+
+        // next is either the next cell in the same word or the 1st cell in the next word in the same direction
+        next.dispatchEvent(new Event(createUserActivationAction()), { bubbles: true, });
+
+        return next;
     }
 
     changeActiveCell(cellNumber, diff) {
@@ -312,17 +377,32 @@ export class Action {
         const content = [...text.childNodes].find(not(isHiddenNode));
         if (content) {
             text.removeChild(content);
+            this.cellIdToVariableDict[`${cellId}`][DOWN].letter = null;
+            this.cellIdToVariableDict[`${cellId}`][ACROSS].letter = null;
         }
         return ([text, hiddenText, content]);
     }
 
+    // Function overload: 
+    // If it is called from touch cluelist, it passed the selected and the touch event, 
+    // if it is called from activateWord, it passed the newTarget
+    // else it is called without arguments
 
-    changeDirection() {
+    // Toggel Direction
+    // @ newTarget is either passed or is presumed to be this.selected
+    changeDirection(newTarget, evt) {
+        // console.log(newTarget, evt);
         const [changeDirection] = [ACROSS, DOWN].filter(dir => dir !== this.direction);
-        this.direction = changeDirection;
-        const cell = this.selected;
-        this.selected = null; // prevent loop
-        cell.dispatchEvent(new Event(createUserActivationAction()), { bubbles: true });
+        const cell = newTarget || this.selected;
+        // check if the cell exist in a word on the other direction
+        // if it doesn't exist in another direction, just return,
+        // else, change direction
+        if (getCellVariable(cell, changeDirection)) {// this will return if the cell exists in a word on the changeDirection
+            this.direction = changeDirection;
+            this.selected = null; // prevent loop
+            cell.dispatchEvent(new Event(createUserActivationAction()), { bubbles: true });
+        }
+
     }
 
     // zoom and touchMove events
@@ -664,7 +744,7 @@ export class Action {
             const [previousDir, previousNum] = this.highlightedClue.split('-');
             this.shadowRoot.querySelector(`[data-dir='${previousDir}'] [data-li-clue-index ='${previousNum}']`).classList.remove('highlightedClue');
         }
-        const otherDirection = this.direction == 'across' ? 'down' : 'across';
+        const otherDirection = this.direction == ACROSS ? DOWN : ACROSS;
         const highlightedVariable = getCellVariable(this.selected, otherDirection); //selected.getAttribute(`data-variable-${direction}`).split('-');
         const highlightedClue = this.startOfWordCells.findIndex(({ cell }) => getCellVariable(cell, otherDirection) == highlightedVariable);
         // maybe there isn't a word on the other direction
