@@ -421,7 +421,16 @@ class Action {
             }
             if (next) {
                 // ensure that this.direction is always the direction in which the next exists in a word (might exist in 2)
-                this.direction = next.startOfWordVariable.direction;
+                //this.direction = next.startOfWordVariable.direction;
+
+                // if this.directon == down and the next cell is the start of a down word, then continue down
+                // if this direction == across and the next cell is the start of an across word, then continue across
+                // else change to what whatever direction the next cell starts a word
+                const down = this.cellIdToVariableDict[next.cell.id][DOWN] && this.cellIdToVariableDict[next.cell.id][DOWN].isStartOfWord
+                    && this.direction == DOWN && this.direction;
+                const across = this.cellIdToVariableDict[next.cell.id][ACROSS] && this.cellIdToVariableDict[next.cell.id][ACROSS].isStartOfWord
+                    && this.direction == ACROSS && this.direction;
+                this.direction = down || across || next.startOfWordVariable.direction;
 
                 // synchronous dispatch : https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/dispatchEvent
                 // :dispatchEvent() invokes event handlers synchronously
@@ -896,6 +905,8 @@ class Action {
         const { availWidth, availHeight } = window.screen;
         const statusBarHeight = availHeight - window.innerHeight;
 
+        const { width: availContentWidth, height: availContentHeight } = this.shadowRoot.querySelector('main.touch').getBoundingClientRect();
+
         // the reset values for the translate function are relative to the original position, considered 0, no matter the x,y values
         let [resetX, resetY] = [...this.position];
 
@@ -909,16 +920,30 @@ class Action {
                 }
 
                 // originally: right = width                
-                if (left < -(width - availWidth)) { // if we have moved all the overflow to the left and passed that
-                    resetX = ((availWidth - width) / 2) - (10);
+                // if (left < -(width - availWidth)) { // if we have moved all the overflow to the left and passed that
+                //     resetX = ((availWidth - width) / 2) - (10);
+                // } else if (right > width) {
+                //     resetX = Math.abs(((availWidth - width) / 2)) + 10;
+                // }
+
+                // Replace availWidth with the actual width (availContentWidth) of the main component when it is embedded in a page                
+                if (left < -(width - availContentWidth)) { // if we have moved all the overflow to the left and passed that
+                    resetX = ((availContentWidth - width) / 2) - (10);
                 } else if (right > width) {
-                    resetX = Math.abs(((availWidth - width) / 2)) + 10;
+                    resetX = Math.abs(((availContentWidth - width) / 2)) + 10;
                 }
 
+                // if (bottom > height) { // if we moved down. originally bottom = height
+                //     resetY = Math.abs((availHeight - (keyBoardHeight + 10 + statusBarHeight) - height) / 2);
+                // } else if (top < -(height - statusBarHeight)) { // don't pass over half of the screen
+                //     resetY = ((availHeight - statusBarHeight - height) / 2);
+                // }
+
+                // Replace availHeight with the actual height (availContentHeight) of the main component when it is embedded in a page
                 if (bottom > height) { // if we moved down. originally bottom = height
-                    resetY = Math.abs((availHeight - (keyBoardHeight + 10 + statusBarHeight) - height) / 2);
+                    resetY = Math.abs((availContentHeight - (keyBoardHeight + 10 + statusBarHeight) - height) / 2);
                 } else if (top < -(height - statusBarHeight)) { // don't pass over half of the screen
-                    resetY = ((availHeight - statusBarHeight - height) / 2);
+                    resetY = ((availContentHeight - statusBarHeight - height) / 2);
                 }
 
                 // touchEnd         
@@ -1002,7 +1027,15 @@ class Action {
             const gridCell = this.startOfWordCells[clueNumber - 1].cell;
             gridCell.dispatchEvent(new Event(createUserActivationAction(), { bubbles: true })); // first send the event to the svg
         } else {
-            active.scrollIntoView();
+            // if we are not displaying touch
+            if (this.shadowRoot.querySelector('.scrolls ol')) {
+                //active.scrollIntoView({ block: 'nearest', inline: 'start' });
+                active.parentNode.scrollTop = active.offsetTop - active.parentNode.offsetTop;
+            } else {
+                //mobile                
+                // active.scrollIntoView({ block: 'nearest', inline: 'start' });
+                active.parentNode.parentNode.style.top = `${-active.offsetTop}px`;
+            }
         }
 
         window.requestAnimationFrame(addHighlight);
@@ -1034,7 +1067,8 @@ class Action {
             highlightedLi.classList.add('highlightedClue');
 
             //@TODO SOS MAKE SURE WE ARE NOT DOING THIS ON MOBILE, BECAUSE IT WLL SCROLL TO VIEW THE OTHER DIRECTION!!!!!!!!!!!
-            highlightedLi.scrollIntoView();
+            // highlightedLi.scrollIntoView();
+            highlightedLi.parentNode.scrollTop = highlightedLi.offsetTop - highlightedLi.parentNode.offsetTop;
         }
     }
 
@@ -4172,6 +4206,10 @@ class CrossWordElement extends LitElement {
 
   static get styles() {
     return css`
+      :host {
+        display:block;
+        margin-bottom: 20px;
+      }
       main {
         width: 100%;
         max-width: 1150px;
@@ -4191,7 +4229,7 @@ class CrossWordElement extends LitElement {
       }
 
       main:not(.touch) > div.container {
-        max-height: 660px;
+        max-height: 660px; /* live 680 for controls*/
       }
 
       main.touch > div.container {
@@ -4245,7 +4283,7 @@ class CrossWordElement extends LitElement {
       }
 
       main.touch section[aria-label="puzzle grid"] {
-        height: 55vh; /*was 60vh; */
+        height: 52vh; /*was 55vh, 60vh; */
         flex-basis: 100%; /* mobile first */
         max-width: 100%;
         overflow: hidden;
@@ -4271,22 +4309,25 @@ class CrossWordElement extends LitElement {
         display: none;
         width: 0;
         height: 0;
+      
       }
 
-      @media screen and (max-width:700px) {
-
+      /* MOVE THESE To window.resize event
+      
+       @media screen and (max-width:700px) {
+    
         main:not(.touch) article[aria-label="puzzle game"].row {
           flex-direction: ${flexDirectionColumn};
         }
-
+    
         main:not(.touch) article[aria-label="puzzle game"].row section[aria-label="puzzle clues"] {
           flex-basis: ${flexGridWidthColumn};
-          max-width:  ${flexGridWidthColumn}; /* same as grid */
+          max-width:  ${flexGridWidthColumn};
           height: ${flexCluesHeightColumn};
           max-height: ${flexCluesHeightColumn};
           min-height: ${flexCluesHeightColumn};
         }
-
+    
         main:not(.touch) article[aria-label="puzzle game"].row section[aria-label="puzzle grid"] {
           flex-basis: ${flexGridWidthColumn};
           max-width:  ${flexGridWidthColumn};
@@ -4295,34 +4336,37 @@ class CrossWordElement extends LitElement {
           min-height:  ${flexGridHeightColumn};
         }
         
-      }
-
-      @media screen and (min-width:700px) {
-
-        main:not(.touch) article[aria-label="puzzle game"].column {
-          flex-direction: ${flexDirectionRow};
-        }
-
-        main:not(.touch) article[aria-label="puzzle game"].column section[aria-label="puzzle clues"] {
-          flex-basis: ${flexCluesWidthRow};
-          max-width:  ${flexCluesWidthRow};
-          height: ${flexCluesHeightRow};
-          max-height: ${flexCluesHeightRow};
-          min-height: ${flexCluesHeightRow};
-        }
-
-        main:not(.touch) article[aria-label="puzzle game"].column section[aria-label="puzzle grid"] {
-          flex-basis: ${flexGridWidthRow};
-          max-width:  ${flexGridWidthRow};
-          height: ${flexGridHeightRow};
-          max-height:  ${flexGridHeightRow};
-          min-height:  ${flexGridHeightRow};
-        }
+      } 
+      
+        @media screen and (min-width:700px) {
+    
+          main:not(.touch) article[aria-label="puzzle game"].column {
+            flex-direction: ${flexDirectionRow};
+          }
+    
+          main:not(.touch) article[aria-label="puzzle game"].column section[aria-label="puzzle clues"] {
+            flex-basis: ${flexCluesWidthRow};
+            max-width:  ${flexCluesWidthRow};
+            height: ${flexCluesHeightRow};
+            max-height: ${flexCluesHeightRow};
+            min-height: ${flexCluesHeightRow};
+          }
+    
+          main:not(.touch) article[aria-label="puzzle game"].column section[aria-label="puzzle grid"] {
+            flex-basis: ${flexGridWidthRow};
+            max-width:  ${flexGridWidthRow};
+            height: ${flexGridHeightRow};
+            max-height:  ${flexGridHeightRow};
+            min-height:  ${flexGridHeightRow};
+          }
         
       }
+    
+      */  
+   
 
       .board {
-        position: absolute; /* RELATIVE TO: section[aria-label="puzzle grid"] */;
+        position: absolute; /* RELATIVE TO: section[aria-label="puzzle grid"] */
         box-sizing: border-box;
         transition: transform 0s ease-in-out 0s;
         transform: translate(0px, 0px) scale(1);
@@ -4389,6 +4433,8 @@ class CrossWordElement extends LitElement {
         display: flex;
         justify-content: space-around;
         max-height: 100%; /* percentage of clues section */
+        margin-bottom: 5px;
+        box-sizing: border-box;
       }
 
       main:not(.touch) .scrolls:not([hidden]) > div {
@@ -4398,9 +4444,10 @@ class CrossWordElement extends LitElement {
       main:not(.touch) .scrolls:not([hidden]) h4 {
         width: 95%;
         margin: 0px;
-        padding-bottom: 5px;
+        /* padding-bottom: 3px; */
         text-transform: uppercase;
         border-bottom: 1px solid rgb(204, 204, 204);
+        color: black;
       }
 
       main:not(.touch) .scrolls:not([hidden]) ol {
@@ -4460,7 +4507,8 @@ class CrossWordElement extends LitElement {
         padding: 5px 1px;
         background: transparent;
         letter-spacing: 0.5px;
-        font-size: 15px;    
+        font-size: 16px;    
+        color: black;
       }
         
       main:not(.touch) .scrolls:not([hidden]) ol li > span:first-child {
@@ -4621,12 +4669,15 @@ class CrossWordElement extends LitElement {
         flex-basis: 72vw;
         max-width: 72vw;
         box-sizing: border-box;
+        position: relative;
         overflow: hidden;
       }
         
       main.touch .touchClues .clueText .textContainer {
           width: auto;
           height: auto;
+          position: absolute;
+          top: 0;
       }
         
       main.touch .touchClues .clueText ol {
@@ -4667,7 +4718,9 @@ class CrossWordElement extends LitElement {
       
       main.touch .touchClues .clueText ol li span:nth-child(2) {
         padding-left: 1.5vw;
+        line-height: 1.1;
         text-align: left;
+        color: black;
       }      
 
       .hidden {
@@ -4676,7 +4729,27 @@ class CrossWordElement extends LitElement {
         pointer-events: none;
         opacity: 0.001;
         user-select: none;
-      }        
+      }
+
+      .main:not(.touch) .sticky{
+        display: none;
+        width: 0;
+        height: 0;
+      }
+
+      main.touch .sticky {
+        position: -webkit-sticky;
+        position: sticky;
+        top: 0;
+        width: 100%;
+        max-width: 100%;
+        height: 30px;
+        z-index: 3;
+        background-color: yellow;
+        font-size: 20px;
+        border-bottom: solid 1px #ccc;
+        will-change: transform; /* render the element in its own layer, improving repaint speed */   
+      }      
 
     `;
   }
@@ -4695,6 +4768,9 @@ class CrossWordElement extends LitElement {
   render() {
     return html`
       <main>
+
+      <div class="sticky"></div>
+
         <div class="container">
 
           <article aria-label="puzzle game">
@@ -4744,6 +4820,7 @@ class CrossWordElement extends LitElement {
     // create the view
     init(this.shadowRoot);
 
+    console.log(this.parentElement);
     const { width, height, x, y } = this.parentElement.getBoundingClientRect();
 
     // use this for mobiles to override posistion

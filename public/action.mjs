@@ -143,7 +143,16 @@ export class Action {
             }
             if (next) {
                 // ensure that this.direction is always the direction in which the next exists in a word (might exist in 2)
-                this.direction = next.startOfWordVariable.direction;
+                //this.direction = next.startOfWordVariable.direction;
+
+                // if this.directon == down and the next cell is the start of a down word, then continue down
+                // if this direction == across and the next cell is the start of an across word, then continue across
+                // else change to what whatever direction the next cell starts a word
+                const down = this.cellIdToVariableDict[next.cell.id][DOWN] && this.cellIdToVariableDict[next.cell.id][DOWN].isStartOfWord
+                    && this.direction == DOWN && this.direction;
+                const across = this.cellIdToVariableDict[next.cell.id][ACROSS] && this.cellIdToVariableDict[next.cell.id][ACROSS].isStartOfWord
+                    && this.direction == ACROSS && this.direction;
+                this.direction = down || across || next.startOfWordVariable.direction;
 
                 // synchronous dispatch : https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/dispatchEvent
                 // :dispatchEvent() invokes event handlers synchronously
@@ -618,6 +627,8 @@ export class Action {
         const { availWidth, availHeight } = window.screen;
         const statusBarHeight = availHeight - window.innerHeight;
 
+        const { width: availContentWidth, height: availContentHeight } = this.shadowRoot.querySelector('main.touch').getBoundingClientRect();
+
         // the reset values for the translate function are relative to the original position, considered 0, no matter the x,y values
         let [resetX, resetY] = [...this.position];
 
@@ -631,16 +642,30 @@ export class Action {
                 }
 
                 // originally: right = width                
-                if (left < -(width - availWidth)) { // if we have moved all the overflow to the left and passed that
-                    resetX = ((availWidth - width) / 2) - (10);
+                // if (left < -(width - availWidth)) { // if we have moved all the overflow to the left and passed that
+                //     resetX = ((availWidth - width) / 2) - (10);
+                // } else if (right > width) {
+                //     resetX = Math.abs(((availWidth - width) / 2)) + 10;
+                // }
+
+                // Replace availWidth with the actual width (availContentWidth) of the main component when it is embedded in a page                
+                if (left < -(width - availContentWidth)) { // if we have moved all the overflow to the left and passed that
+                    resetX = ((availContentWidth - width) / 2) - (10);
                 } else if (right > width) {
-                    resetX = Math.abs(((availWidth - width) / 2)) + 10;
+                    resetX = Math.abs(((availContentWidth - width) / 2)) + 10;
                 }
 
+                // if (bottom > height) { // if we moved down. originally bottom = height
+                //     resetY = Math.abs((availHeight - (keyBoardHeight + 10 + statusBarHeight) - height) / 2);
+                // } else if (top < -(height - statusBarHeight)) { // don't pass over half of the screen
+                //     resetY = ((availHeight - statusBarHeight - height) / 2);
+                // }
+
+                // Replace availHeight with the actual height (availContentHeight) of the main component when it is embedded in a page
                 if (bottom > height) { // if we moved down. originally bottom = height
-                    resetY = Math.abs((availHeight - (keyBoardHeight + 10 + statusBarHeight) - height) / 2);
+                    resetY = Math.abs((availContentHeight - (keyBoardHeight + 10 + statusBarHeight) - height) / 2);
                 } else if (top < -(height - statusBarHeight)) { // don't pass over half of the screen
-                    resetY = ((availHeight - statusBarHeight - height) / 2);
+                    resetY = ((availContentHeight - statusBarHeight - height) / 2);
                 }
 
                 // touchEnd         
@@ -724,7 +749,15 @@ export class Action {
             const gridCell = this.startOfWordCells[clueNumber - 1].cell;
             gridCell.dispatchEvent(new Event(createUserActivationAction(), { bubbles: true })); // first send the event to the svg
         } else {
-            active.scrollIntoView();
+            // if we are not displaying touch
+            if (this.shadowRoot.querySelector('.scrolls ol')) {
+                //active.scrollIntoView({ block: 'nearest', inline: 'start' });
+                active.parentNode.scrollTop = active.offsetTop - active.parentNode.offsetTop;
+            } else {
+                //mobile                
+                // active.scrollIntoView({ block: 'nearest', inline: 'start' });
+                active.parentNode.parentNode.style.top = `${-active.offsetTop}px`;
+            }
         }
 
         window.requestAnimationFrame(addHighlight);
@@ -756,7 +789,8 @@ export class Action {
             highlightedLi.classList.add('highlightedClue');
 
             //@TODO SOS MAKE SURE WE ARE NOT DOING THIS ON MOBILE, BECAUSE IT WLL SCROLL TO VIEW THE OTHER DIRECTION!!!!!!!!!!!
-            highlightedLi.scrollIntoView();
+            // highlightedLi.scrollIntoView();
+            highlightedLi.parentNode.scrollTop = highlightedLi.offsetTop - highlightedLi.parentNode.offsetTop;
         }
     }
 

@@ -486,3 +486,57 @@ flex-direction: column;
 z-index: 1;
 }   
 
+
+
+  /* MOVE THESE To window.resize event
+  
+   @media screen and (max-width:700px) {
+
+    main:not(.touch) article[aria-label="puzzle game"].row {
+      flex-direction: ${flexDirectionColumn};
+    }
+
+    main:not(.touch) article[aria-label="puzzle game"].row section[aria-label="puzzle clues"] {
+      flex-basis: ${flexGridWidthColumn};
+      max-width:  ${flexGridWidthColumn};
+      height: ${flexCluesHeightColumn};
+      max-height: ${flexCluesHeightColumn};
+      min-height: ${flexCluesHeightColumn};
+    }
+
+    main:not(.touch) article[aria-label="puzzle game"].row section[aria-label="puzzle grid"] {
+      flex-basis: ${flexGridWidthColumn};
+      max-width:  ${flexGridWidthColumn};
+      height: ${flexGridHeightColumn};
+      max-height:  ${flexGridHeightColumn};
+      min-height:  ${flexGridHeightColumn};
+    }
+    
+  } 
+  
+  @media screen and (min-width:700px) {
+
+    main:not(.touch) article[aria-label="puzzle game"].column {
+      flex-direction: ${flexDirectionRow};
+    }
+
+    main:not(.touch) article[aria-label="puzzle game"].column section[aria-label="puzzle clues"] {
+      flex-basis: ${flexCluesWidthRow};
+      max-width:  ${flexCluesWidthRow};
+      height: ${flexCluesHeightRow};
+      max-height: ${flexCluesHeightRow};
+      min-height: ${flexCluesHeightRow};
+    }
+
+    main:not(.touch) article[aria-label="puzzle game"].column section[aria-label="puzzle grid"] {
+      flex-basis: ${flexGridWidthRow};
+      max-width:  ${flexGridWidthRow};
+      height: ${flexGridHeightRow};
+      max-height:  ${flexGridHeightRow};
+      min-height:  ${flexGridHeightRow};
+    }
+    
+  }
+
+*/
+

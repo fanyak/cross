@@ -15,6 +15,10 @@ class CrossWordElement extends LitElement {
 
   static get styles() {
     return css`
+      :host {
+        display:block;
+        margin-bottom: 20px;
+      }
       main {
         width: 100%;
         max-width: 1150px;
@@ -34,7 +38,7 @@ class CrossWordElement extends LitElement {
       }
 
       main:not(.touch) > div.container {
-        max-height: 660px;
+        max-height: 660px; /* live 680 for controls*/
       }
 
       main.touch > div.container {
@@ -88,7 +92,7 @@ class CrossWordElement extends LitElement {
       }
 
       main.touch section[aria-label="puzzle grid"] {
-        height: 55vh; /*was 60vh; */
+        height: 52vh; /*was 55vh, 60vh; */
         flex-basis: 100%; /* mobile first */
         max-width: 100%;
         overflow: hidden;
@@ -114,22 +118,25 @@ class CrossWordElement extends LitElement {
         display: none;
         width: 0;
         height: 0;
+      
       }
 
-      @media screen and (max-width:700px) {
-
+      /* MOVE THESE To window.resize event
+      
+       @media screen and (max-width:700px) {
+    
         main:not(.touch) article[aria-label="puzzle game"].row {
           flex-direction: ${flexDirectionColumn};
         }
-
+    
         main:not(.touch) article[aria-label="puzzle game"].row section[aria-label="puzzle clues"] {
           flex-basis: ${flexGridWidthColumn};
-          max-width:  ${flexGridWidthColumn}; /* same as grid */
+          max-width:  ${flexGridWidthColumn};
           height: ${flexCluesHeightColumn};
           max-height: ${flexCluesHeightColumn};
           min-height: ${flexCluesHeightColumn};
         }
-
+    
         main:not(.touch) article[aria-label="puzzle game"].row section[aria-label="puzzle grid"] {
           flex-basis: ${flexGridWidthColumn};
           max-width:  ${flexGridWidthColumn};
@@ -138,34 +145,37 @@ class CrossWordElement extends LitElement {
           min-height:  ${flexGridHeightColumn};
         }
         
-      }
-
-      @media screen and (min-width:700px) {
-
-        main:not(.touch) article[aria-label="puzzle game"].column {
-          flex-direction: ${flexDirectionRow};
-        }
-
-        main:not(.touch) article[aria-label="puzzle game"].column section[aria-label="puzzle clues"] {
-          flex-basis: ${flexCluesWidthRow};
-          max-width:  ${flexCluesWidthRow};
-          height: ${flexCluesHeightRow};
-          max-height: ${flexCluesHeightRow};
-          min-height: ${flexCluesHeightRow};
-        }
-
-        main:not(.touch) article[aria-label="puzzle game"].column section[aria-label="puzzle grid"] {
-          flex-basis: ${flexGridWidthRow};
-          max-width:  ${flexGridWidthRow};
-          height: ${flexGridHeightRow};
-          max-height:  ${flexGridHeightRow};
-          min-height:  ${flexGridHeightRow};
-        }
+      } 
+      
+        @media screen and (min-width:700px) {
+    
+          main:not(.touch) article[aria-label="puzzle game"].column {
+            flex-direction: ${flexDirectionRow};
+          }
+    
+          main:not(.touch) article[aria-label="puzzle game"].column section[aria-label="puzzle clues"] {
+            flex-basis: ${flexCluesWidthRow};
+            max-width:  ${flexCluesWidthRow};
+            height: ${flexCluesHeightRow};
+            max-height: ${flexCluesHeightRow};
+            min-height: ${flexCluesHeightRow};
+          }
+    
+          main:not(.touch) article[aria-label="puzzle game"].column section[aria-label="puzzle grid"] {
+            flex-basis: ${flexGridWidthRow};
+            max-width:  ${flexGridWidthRow};
+            height: ${flexGridHeightRow};
+            max-height:  ${flexGridHeightRow};
+            min-height:  ${flexGridHeightRow};
+          }
         
       }
+    
+      */  
+   
 
       .board {
-        position: absolute; /* RELATIVE TO: section[aria-label="puzzle grid"] */;
+        position: absolute; /* RELATIVE TO: section[aria-label="puzzle grid"] */
         box-sizing: border-box;
         transition: transform 0s ease-in-out 0s;
         transform: translate(0px, 0px) scale(1);
@@ -232,6 +242,8 @@ class CrossWordElement extends LitElement {
         display: flex;
         justify-content: space-around;
         max-height: 100%; /* percentage of clues section */
+        margin-bottom: 5px;
+        box-sizing: border-box;
       }
 
       main:not(.touch) .scrolls:not([hidden]) > div {
@@ -241,9 +253,10 @@ class CrossWordElement extends LitElement {
       main:not(.touch) .scrolls:not([hidden]) h4 {
         width: 95%;
         margin: 0px;
-        padding-bottom: 5px;
+        /* padding-bottom: 3px; */
         text-transform: uppercase;
         border-bottom: 1px solid rgb(204, 204, 204);
+        color: black;
       }
 
       main:not(.touch) .scrolls:not([hidden]) ol {
@@ -303,7 +316,8 @@ class CrossWordElement extends LitElement {
         padding: 5px 1px;
         background: transparent;
         letter-spacing: 0.5px;
-        font-size: 15px;    
+        font-size: 16px;    
+        color: black;
       }
         
       main:not(.touch) .scrolls:not([hidden]) ol li > span:first-child {
@@ -464,12 +478,15 @@ class CrossWordElement extends LitElement {
         flex-basis: 72vw;
         max-width: 72vw;
         box-sizing: border-box;
+        position: relative;
         overflow: hidden;
       }
         
       main.touch .touchClues .clueText .textContainer {
           width: auto;
           height: auto;
+          position: absolute;
+          top: 0;
       }
         
       main.touch .touchClues .clueText ol {
@@ -510,7 +527,9 @@ class CrossWordElement extends LitElement {
       
       main.touch .touchClues .clueText ol li span:nth-child(2) {
         padding-left: 1.5vw;
+        line-height: 1.1;
         text-align: left;
+        color: black;
       }      
 
       .hidden {
@@ -519,7 +538,27 @@ class CrossWordElement extends LitElement {
         pointer-events: none;
         opacity: 0.001;
         user-select: none;
-      }        
+      }
+
+      .main:not(.touch) .sticky{
+        display: none;
+        width: 0;
+        height: 0;
+      }
+
+      main.touch .sticky {
+        position: -webkit-sticky;
+        position: sticky;
+        top: 0;
+        width: 100%;
+        max-width: 100%;
+        height: 30px;
+        z-index: 3;
+        background-color: yellow;
+        font-size: 20px;
+        border-bottom: solid 1px #ccc;
+        will-change: transform; /* render the element in its own layer, improving repaint speed */   
+      }      
 
     `;
   }
@@ -538,6 +577,9 @@ class CrossWordElement extends LitElement {
   render() {
     return html`
       <main>
+
+      <div class="sticky"></div>
+
         <div class="container">
 
           <article aria-label="puzzle game">
@@ -587,6 +629,7 @@ class CrossWordElement extends LitElement {
     // create the view
     init(this.shadowRoot);
 
+    console.log(this.parentElement)
     const { width, height, x, y } = this.parentElement.getBoundingClientRect();
 
     // use this for mobiles to override posistion
