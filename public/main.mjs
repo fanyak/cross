@@ -4,12 +4,12 @@ import { LitElement, css, html } from 'lit-element';
 let flexDirectionRow = css`row`;
 let flexDirectionColumn = css`column`;
 let flexGridWidthRow = css`55%`;
-let flexCluesWidthRow = css`45%`;
+let flexCluesWidthRow = css`40%`;
 let flexGridWidthColumn = css`100%`;
 let flexGridHeightRow = css`100%`;
 let flexGridHeightColumn = css`60%`;
 let flexCluesHeightRow = css`100%`;
-let flexCluesHeightColumn = css`40%`;
+let flexCluesHeightColumn = css`35%`; // leaves 5%?
 
 class CrossWordElement extends LitElement {
 
@@ -17,8 +17,11 @@ class CrossWordElement extends LitElement {
     return css`
       :host {
         display:block;
+        width: 100%;
+        max-width: 100%;
         margin-bottom: 20px;
       }
+
       main {
         width: 100%;
         max-width: 1150px;
@@ -38,7 +41,8 @@ class CrossWordElement extends LitElement {
       }
 
       main:not(.touch) > div.container {
-        max-height: 660px; /* live 680 for controls*/
+        height: 90vh;
+        max-height: 90vh; /* leave 680 for controls*/
       }
 
       main.touch > div.container {
@@ -78,17 +82,17 @@ class CrossWordElement extends LitElement {
         flex-basis: ${flexGridWidthColumn};
         max-width:  ${flexGridWidthColumn};
         height: ${flexGridHeightColumn};
-        max-height:  ${flexGridHeightColumn};
+        max-height:  calc(100% - ${flexCluesHeightColumn});
         min-height:  ${flexGridHeightColumn};
         overflow: hidden;
       }     
       
       main:not(.touch) article[aria-label="puzzle game"].row section[aria-label="puzzle grid"] {
         flex-basis: ${flexGridWidthRow};
-        max-width:  ${flexGridWidthRow};
+        max-width: 501px; /* ${flexGridWidthRow};*/
         height: ${flexGridHeightRow};
-        max-height:  ${flexGridHeightRow};
-        min-height:  ${flexGridHeightRow};
+        max-height: ${flexGridHeightRow};
+        min-height: ${flexGridHeightRow};
       }
 
       main.touch section[aria-label="puzzle grid"] {
@@ -213,7 +217,8 @@ class CrossWordElement extends LitElement {
       }
 
       main:not(.touch) svg {
-        height: 550px;
+        height: 501px;
+        max-height: 100%;
       }
 
       svg text {    
@@ -243,11 +248,15 @@ class CrossWordElement extends LitElement {
         justify-content: space-around;
         max-height: 100%; /* percentage of clues section */
         margin-bottom: 5px;
+        margin-left: 1vw;
         box-sizing: border-box;
       }
 
       main:not(.touch) .scrolls:not([hidden]) > div {
-        margin-left: 1vw;
+        margin-left: 5px;
+        flex: 1 1 50%;
+        max-width: 50%;
+        box-sizing: border-box;
       }
 
       main:not(.touch) .scrolls:not([hidden]) h4 {
@@ -312,11 +321,12 @@ class CrossWordElement extends LitElement {
       }
         
       main:not(.touch) .scrolls:not([hidden]) ol li span {
-        line-height: 1.3;
+        line-height: 1.1;
         padding: 5px 1px;
         background: transparent;
         letter-spacing: 0.5px;
-        font-size: 16px;    
+        font-size: 16px; 
+        word-break: break-word;   
         color: black;
       }
         
@@ -475,8 +485,8 @@ class CrossWordElement extends LitElement {
         
       main.touch .touchClues .clueText  {
         height: 100%;
-        flex-basis: 72vw;
-        max-width: 72vw;
+        flex-basis: 70vw;
+        max-width: 70vw;
         box-sizing: border-box;
         position: relative;
         overflow: hidden;
@@ -502,8 +512,8 @@ class CrossWordElement extends LitElement {
           align-items: stretch; 
           height: 7.5vh;
           max-height: 7.5vh;
-          width: 72vw;
-          max-width: 72vw;
+          width: 70vw;
+          max-width: 70vw;
           box-sizing: border-box; 
           font-size: 5vw;
           user-select: none;
@@ -547,9 +557,9 @@ class CrossWordElement extends LitElement {
       }
 
       main.touch .sticky {
-        position: -webkit-sticky;
+        /* position: -webkit-sticky;
         position: sticky;
-        top: 0;
+        top: 0; */
         width: 100%;
         max-width: 100%;
         height: 30px;
@@ -629,15 +639,17 @@ class CrossWordElement extends LitElement {
     // create the view
     init(this.shadowRoot);
 
+    // get the parentElement of the component
     console.log(this.parentElement)
-    const { width, height, x, y } = this.parentElement.getBoundingClientRect();
+    // const { width, height, x, y } = this.parentElement.getBoundingClientRect();
 
     // use this for mobiles to override posistion
-    console.log(this.shadowRoot.querySelector(`main`).getBoundingClientRect())
+    const { width, height, x, y } = this.shadowRoot.querySelector(`main`).getBoundingClientRect();
 
-    const cls = width > 700 ? `row` : `column`;
+    const cls = width > 850 ? `row` : `column`;
     this.shadowRoot.querySelector(`main article[aria-label="puzzle game"]`).classList.add(cls);
 
+    // Must update!!
     // Event to trigger update
     let newMessage = new CustomEvent('load-completed', {
       detail: { message: 'load completed' }
