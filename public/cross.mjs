@@ -73,7 +73,7 @@ class Crossword {
         for (let i = 0; i < this.height; i++) {
             const row = [];
             for (let j = 0; j < this.width; j++) {
-                if (constraints.find(val => val == i * this.height + j + 1)) {
+                if (constraints.find(val => val == i * this.width + j + 1)) {
                     row.push(false);
                 } else {
                     row.push(true);
@@ -188,4 +188,4 @@ class Crossword {
 }
 
 
-export { Crossword, Variable,  };
+export { Crossword, Variable, };

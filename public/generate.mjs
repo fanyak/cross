@@ -1,8 +1,6 @@
-import { filter } from 'core-js/core/array';
-import { assign } from 'core-js/core/object';
 import { Crossword, Variable } from './cross.mjs';
 
-class CrosswordCreator {
+export class CrosswordCreator {
 
     constructor(crossword) {
         this.crossword = crossword;
@@ -10,7 +8,7 @@ class CrosswordCreator {
         this.domains = new Map(); // the keys of the 
         // crossword.variables is a Set()
         for (let variable of this.crossword.variables) {
-            this.domains.add(variable, [...this.crossword.words]);
+            this.domains.set(variable, [...this.crossword.words]);
         }
         this.backup = [];
         this.epochs = 0;
@@ -26,7 +24,7 @@ class CrosswordCreator {
             }
             letters.push(row);
         }
-        for (let [variable, word] in assignment.entries()) {
+        for (let [variable, word] of assignment.entries()) {
             const direction = variable.direction;
             for (let k = 0; k < word.length; k++) {
                 let i = direction == Variable.DOWN ? variable.i + k : variable.i;
@@ -40,6 +38,7 @@ class CrosswordCreator {
     // helper function to console.log the assignment
     print(assignment) {
         const letters = this.letterGrid(assignment);
+
         for (let i = 0; i < this.crossword.height; i++) {
             let r = '';
             for (let j = 0; j < this.crossword.width; j++) {
@@ -53,10 +52,11 @@ class CrosswordCreator {
         }
     }
 
-    //Enforce node and arc consistency, and then solve the CSP.
+    //Enforce node and arc consistency, and then solve the CSP by backtracin search (recursion).
     solve() {
         this.enforceNodeConsistency();
         this.ac3();
+        return this.backTrack(new Map());
     }
 
     // Update this.domains such that each variable is node-consistent.
@@ -104,7 +104,7 @@ class CrosswordCreator {
     // Return true if arc consistency is enforced AND no domains are empty
     // Return false if any of the domains end up empty.
     ac3(arcs = null) {
-        // this.crossword.overlaps is a map
+        // this.crossword.overlaps is a Map
         let queue = arcs || Array.from(this.crossword.overlaps.keys());
         // keep a queue of the arcs
         while (queue.length) {
@@ -123,7 +123,8 @@ class CrosswordCreator {
                 }
                 // enque the rest of the neighbors of X iff x has been revised, in order to update them also
                 const neighbors = this.crossword.neighbors(x); // Given a variable, return SET of overlapping variables.
-                queue = [...queue, ...Array.from(neighbors).filter(neighbor => !neighbor.equals(y))]; // enqueue the rest of the neighbors
+                const enqueu = Array.from(neighbors).filter(neighbor => !neighbor.equals(y)).map((neighbor) => [x, neighbor]);
+                queue = [...queue, ...enqueu]; // enqueue the rest of the neighbors
             }
             // if we have reached the end of the queue with no empty domains, return true
             return true;
@@ -137,7 +138,7 @@ class CrosswordCreator {
     inference(variable, assignment) {
         // if a neighbor has not been assigned a value yet,
         // then make this neighbor be consistent with the variable has been assigned a value
-        const neighbors = Array.from(this.crossword.neighbors);
+        const neighbors = Array.from(this.crossword.neighbors(variable));
         const neighbors_arcs = neighbors.reduce((acc, cur) => {
             if (!assignment.get(cur)) {
                 acc.push([cur, variable]);// make the neighbor arc-consistent with the assigned variable
@@ -152,8 +153,7 @@ class CrosswordCreator {
         if (this.ac3(neighbors_arcs)) { // returns false if we end-up with empty domains, true otherwise
 
             for (let v of this.domains.keys()) {
-                //@TODO check that this is correct - we are getting all variables not only the neighbors
-                // we must check after this in backtrack
+                // we must check that assignment is consistent after this in backtrack (see Base Case)
                 if (this.domains.get(v).length == 1) { // if we are left with onle 1 possible value
                     assignment.set(v, this.domains.get(v)[0]);
                 }
@@ -166,7 +166,7 @@ class CrosswordCreator {
     }
 
     // Return true if assignment is complete = all the crossword variables have been asssigned a value
-    assignmentComplete(assignment) {
+    complete(assignment) {
         // crossword.variables is a Set()
         for (let variable of this.crossword.variables) {
             if (!assignment.has(variable)) {
@@ -216,7 +216,7 @@ class CrosswordCreator {
     // The first value of the list is the one that rules out the least values for the neighboring variables.
     orderDomainValues(variable, assignment) {
         // we only care about the neighbors of variable that have not been already assigned
-        const neighbors = Array.from(this.crossword.neighbors()).filter((neighbor) => !assignment.has(neighbor));
+        const neighbors = Array.from(this.crossword.neighbors(variable)).filter((neighbor) => !assignment.has(neighbor));
         const yValues = [];
         for (let neighbor of neighbors) {
             const overlap = this.crossword.overlaps.get([variable, neighbor]);
@@ -224,7 +224,7 @@ class CrosswordCreator {
             yValues.push([overlap, neighborValues]);
         }
         const ruleOutByValue = {};
-        for (let wordX in this.domains.get(variable)) {
+        for (let wordX of this.domains.get(variable)) {
             ruleOutByValue[wordX] = 0;
             for (let [overlap, yWords] of yValues) {
                 if (overlap) {
@@ -282,7 +282,7 @@ class CrosswordCreator {
         this.epochs += 1;
 
         // Base Case for recursion
-        if (assignment.size == this.crossword.variables.size) {
+        if (this.consistent(assignment) && this.complete(assignment)) {
             return assignment;
         }
 
@@ -307,9 +307,9 @@ class CrosswordCreator {
 
                 // if inference != failure, then the domains and / or assignment have been updated                    
 
-                //recursion
+                // Recursion
                 // check if we can go further with the value of this iteration
-                const result = this.backtrack(assignmentClone);
+                const result = this.backTrack(assignmentClone);
 
                 // check if at the end of the recursion the Base Case returns the assignment
                 //  i.e: if result is not null = the assignment is complete
@@ -318,7 +318,7 @@ class CrosswordCreator {
                 }
 
                 // inference = failure, restore the wrongly updated domains
-                self.domains = this.backup.pop();
+                this.domains = this.backup.pop();
             }
         }
 

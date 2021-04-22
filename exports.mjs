@@ -69,14 +69,14 @@ Variable(9, 4, 'down', 6),
 Variable(9, 5, 'down', 5),
 Variable(9, 6, 'down', 3)`;
 
-export const constraint_values = [9,10,15,24,39,46,47,48,65,66,67,68,87,99,100,101,106,107,108,118,119,120,125,126,127,139,158,159,160,161,178,179,180,187,202,211,216,217];
-export const words = ['KLINE',  'INBUILT','REMS',   'SNOWCAP','MHZ',    'REGIONAL','TEARS',  'ROEVWADE','CURLER', 'ASASET'];
-export const overlaps_size = 4830
+export const constraint_values = [9, 10, 15, 24, 39, 46, 47, 48, 65, 66, 67, 68, 87, 99, 100, 101, 106, 107, 108, 118, 119, 120, 125, 126, 127, 139, 158, 159, 160, 161, 178, 179, 180, 187, 202, 211, 216, 217];
+export const words = ['KLINE', 'INBUILT', 'REMS', 'SNOWCAP', 'MHZ', 'REGIONAL', 'TEARS', 'ROEVWADE', 'CURLER', 'ASASET'];
+export const overlaps_size = 4830;
 
 export const sample_overlaps = new Map();
 sample_overlaps.set([[10, 11, 'across', 4], [8, 1, 'down', 7]], null);
 sample_overlaps.set([[10, 11, 'across', 4], [8, 13, 'down', 3]], [2, 2]);
-sample_overlaps.set([[10, 11, 'across', 4], [1, 0, 'across', 8]],null);
-sample_overlaps.set([[10, 11, 'across', 4], [8, 14, 'down', 3]],[3, 2]);
+sample_overlaps.set([[10, 11, 'across', 4], [1, 0, 'across', 8]], null);
+sample_overlaps.set([[10, 11, 'across', 4], [8, 14, 'down', 3]], [3, 2]);
 sample_overlaps.set([[10, 11, 'across', 4], [14, 7, 'across', 8]], null);
 sample_overlaps.set([[10, 11, 'across', 4], [8, 12, 'down', 3]], [1, 2]);
