@@ -5,10 +5,11 @@ import { createKeys, extractKeyEvent, toggleKeyPressClass } from './keyboard.mjs
 
 export function init(shadowRoot) {
 
-    const crosswordDimentions = [15, 15];
+    const crosswordDimentions = [15, 15]; //@TODO this should be an input
 
-    const gridFiles = ['api/grids/7', 'api/words/',];
-    const solutionFiles = ['api/solutions/7', 'api/clues/7'];
+    const rootUrl = 'http://localhost:3000/'; // @TODO change to CDN?
+    const gridFiles = ['api/grids/7', 'api/words/',].map((req) => `${rootUrl}${req}`);
+    const solutionFiles = ['api/solutions/7', 'api/clues/7'].map((req) => `${rootUrl}${req}`);
     // @TODO how dow we choose size?
     const cellSize = 33;
     const gridSpan = 495;

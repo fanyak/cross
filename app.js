@@ -1,6 +1,7 @@
 /* eslint-disable no-undef */
 // https://nodejs.org/api/esm.html#esm_modules_ecmascript_modules
 require('dotenv').config(); // read .env files and write to process.env
+const cors = require('cors');
 const express = require('express');
 const { join } = require('path');
 
@@ -40,14 +41,17 @@ const ModuleServer = express.static(MODULE_PATH, { // OPTIONS OBJECT
         }
     }
 });
+
+// Enable ALL cors requests
+// REF: https://www.npmjs.com/package/cors
+app.use(cors())
+
 app.use(ModuleServer);
 
 app.use('/node_modules/', (req, res, next) => {
     res.setHeader('Content-Type', 'text/javascript');
     res.status(200).sendFile(`${MODULE_PATH}/${req.url}`);
 });
-
-
 
 app.use(fileServer);
 
