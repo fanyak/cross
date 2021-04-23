@@ -579,8 +579,15 @@ class CrossWordElement extends LitElement {
     // Request an update in response to an event
     this.addEventListener('load-completed', async (e) => {
       console.log(e.detail.message);
+
       // requests an update when the event is dispatch after firstUpdate()
       console.log('first view update is requested:', await this.requestUpdate());
+
+      // Register service worker if supported.//
+      if ('serviceWorker' in navigator) { //@todo how will the service-worker script be added?
+        navigator.serviceWorker.register('./service-worker.js');
+      }
+
     });
   }
 
