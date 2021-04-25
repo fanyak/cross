@@ -14,7 +14,6 @@ export class Action {
 
         this.selected;
         this.direction = direction; // initial direction setting
-        this.cellSpace;
         this.shadowRoot = shadowRoot;
 
         // these are static once the crossword is complete, don't recalculate it every time  

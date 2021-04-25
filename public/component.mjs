@@ -3,7 +3,9 @@ import { not, createUserActivationAction, createUserActionEnd, mapCellInVariable
 import { Action } from './action.mjs';
 import { createKeys, extractKeyEvent, toggleKeyPressClass } from './keyboard.mjs';
 
-export function init(shadowRoot) {
+export function init(component) {
+
+    const shadowRoot = component.shadowRoot;
 
     const crosswordDimentions = [15, 15]; //@TODO this should be an input
 
@@ -44,7 +46,7 @@ export function init(shadowRoot) {
     }
 
     //@TODO we don't need the vocab file for displaying a generated crossword
-    Promise.all(gridFiles.map(file => fetch(file)))
+    return Promise.all(gridFiles.map(file => fetch(file)))
         .then(responses => Promise.all(responses.map(response => response.json())))
         .then(([structure, words]) => new Crossword(structure, words, ...crosswordDimentions))
         .then((crossword) => makeCells(crossword))
@@ -225,7 +227,6 @@ export function init(shadowRoot) {
 
 
         const cell = shadowRoot.querySelector('#cell-id-0');
-        action.cellSpace = cell.getBoundingClientRect();
 
         // ACTIVATE CELL EVENT
         if (window.PointerEvent) {
@@ -240,9 +241,14 @@ export function init(shadowRoot) {
         }
 
         // @ TODO: DO we need this when we have a touch screen?
-        // Trap device Keyboard  Events!
-        document.addEventListener('keydown', (evt) => {
+        // TRAP device Keyboard  Events!       
+        const trapKeyboardEvents = function f(action, evt) {
+            // console.log(action, evt);
+            // console.log(document.activeElement, shadowRoot.host)
+
+            // allow to write on the document
             evt.preventDefault();
+
             // @ TODO replace the target check if it is out of functional elements
             if (!action.selected && evt.key == 'Tab') {
                 // send the activation event to parent (svg) via the child (cell)          
@@ -260,10 +266,13 @@ export function init(shadowRoot) {
             main.classList.remove('touch'); // ??????????????
             useTouch = false;
 
-        }, true);
+        }.bind(null, action);
+
+        component.dependencies.listeners.push({ 'keydown': trapKeyboardEvents });
+        // add this when the component gains focus
+        // document.addEventListener('keydown', trapKeyboardEvents, true);
 
         // treat move event as initial touch
-
         board.addEventListener('touchmove', touchAction, true);// for zooming
         board.addEventListener('touchend', reset, true);
 
@@ -522,5 +531,8 @@ export function init(shadowRoot) {
             firstWord.cell.dispatchEvent(new Event(createUserActivationAction(), { bubbles: true }));
         }
     }
+
+    // return event handlers that where registered outside the element’s template (on the document)
+    // in order to remove them in disconnectedCallback!  
 
 }

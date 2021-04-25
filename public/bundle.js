@@ -292,7 +292,6 @@ class Action {
 
         this.selected;
         this.direction = direction; // initial direction setting
-        this.cellSpace;
         this.shadowRoot = shadowRoot;
 
         // these are static once the crossword is complete, don't recalculate it every time  
@@ -1145,11 +1144,13 @@ function toggleKeyPressClass(evt) {
     evt.target.removeEventListener('animationend', toggleKeyPressClass, true);
 }
 
-function init(shadowRoot) {
+function init(component) {
 
-    const crosswordDimentions = [15, 15];
+    const shadowRoot = component.shadowRoot;
 
-    const rootUrl = 'http://localhost:3000/';
+    const crosswordDimentions = [15, 15]; //@TODO this should be an input
+
+    const rootUrl = 'http://localhost:3000/'; // @TODO change to CDN?
     const gridFiles = ['api/grids/7', 'api/words/',].map((req) => `${rootUrl}${req}`);
     const solutionFiles = ['api/solutions/7', 'api/clues/7'].map((req) => `${rootUrl}${req}`);
     // @TODO how dow we choose size?
@@ -1185,7 +1186,7 @@ function init(shadowRoot) {
     }
 
     //@TODO we don't need the vocab file for displaying a generated crossword
-    Promise.all(gridFiles.map(file => fetch(file)))
+    return Promise.all(gridFiles.map(file => fetch(file)))
         .then(responses => Promise.all(responses.map(response => response.json())))
         .then(([structure, words]) => new Crossword(structure, words, ...crosswordDimentions))
         .then((crossword) => makeCells(crossword))
@@ -1366,7 +1367,6 @@ function init(shadowRoot) {
 
 
         const cell = shadowRoot.querySelector('#cell-id-0');
-        action.cellSpace = cell.getBoundingClientRect();
 
         // ACTIVATE CELL EVENT
         if (window.PointerEvent) {
@@ -1381,9 +1381,14 @@ function init(shadowRoot) {
         }
 
         // @ TODO: DO we need this when we have a touch screen?
-        // Trap device Keyboard  Events!
-        document.addEventListener('keydown', (evt) => {
+        // TRAP device Keyboard  Events!       
+        const trapKeyboardEvents = function f(action, evt) {
+            // console.log(action, evt);
+            // console.log(document.activeElement, shadowRoot.host)
+
+            // allow to write on the document
             evt.preventDefault();
+
             // @ TODO replace the target check if it is out of functional elements
             if (!action.selected && evt.key == 'Tab') {
                 // send the activation event to parent (svg) via the child (cell)          
@@ -1401,10 +1406,13 @@ function init(shadowRoot) {
             main.classList.remove('touch'); // ??????????????
             useTouch = false;
 
-        }, true);
+        }.bind(null, action);
+
+        component.dependencies.listeners.push({ 'keydown': trapKeyboardEvents });
+        // add this when the component gains focus
+        // document.addEventListener('keydown', trapKeyboardEvents, true);
 
         // treat move event as initial touch
-
         board.addEventListener('touchmove', touchAction, true);// for zooming
         board.addEventListener('touchend', reset, true);
 
@@ -1662,6 +1670,9 @@ function init(shadowRoot) {
             firstWord.cell.dispatchEvent(new Event(createUserActivationAction(), { bubbles: true }));
         }
     }
+
+    // return event handlers that where registered outside the element’s template (on the document)
+    // in order to remove them in disconnectedCallback!  
 
 }
 
@@ -4207,17 +4218,36 @@ class CrossWordElement extends LitElement {
 
   static get styles() {
     return css`
+
+      @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@100&display=swap');
+      
       :host {
+        position: relative;
         display:block;
         width: 100%;
         max-width: 100%;
         margin-bottom: 20px;
       }
 
+      :host:focus {
+        outline: none !important;
+      }
+
       main {
         width: 100%;
         max-width: 1150px;
-      }      
+        height: 90vh;
+        max-height: 90vh;
+      }   
+
+      main.touch {
+        height: calc(90vh + 30px); /* mobile main contains the sticky header */
+        max-height: calc(90vh + 30px);
+      }   
+
+      main:focus {
+        outline: none !important;
+      }
       
       /* containing the element */
       main > div.container {
@@ -4513,11 +4543,12 @@ class CrossWordElement extends LitElement {
       }
         
       main:not(.touch) .scrolls:not([hidden]) ol li span {
+        font-family: 'Libre Franklin', sans-serif;
         line-height: 1.1;
         padding: 5px 1px;
         background: transparent;
         letter-spacing: 0.5px;
-        font-size: 16px; 
+        font-size: 0.85rem; 
         word-break: break-word;   
         color: black;
       }
@@ -4760,13 +4791,98 @@ class CrossWordElement extends LitElement {
         font-size: 20px;
         border-bottom: solid 1px #ccc;
         will-change: transform; /* render the element in its own layer, improving repaint speed */   
-      }      
+      }
+
+      .dialog-holder {
+        display: block;
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: 100%; /* this should be 90vh + 30px for the sticky header*/
+        z-index: 10;
+      }  
+
+      .dialog-holder div[role="dialog"] {
+        position: relative;
+        width: 350px;
+        max-height: 95%;
+        max-width: 100%;
+        margin: auto;
+        padding: 5%;
+        text-align: center;
+        background-color: #fff;
+        border-radius: 4px;
+        -webkit-box-shadow: 0 3px 12px -1px rgb(0 0 0 / 30%);
+        box-shadow: 0 3px 12px -1px rgb(0 0 0 / 30%);
+        -webkit-box-sizing: border-box;
+        box-sizing: border-box;       
+        outline: none;
+        pointer-events: visible;
+        z-index: 2;
+        -webkit-transition: height 50ms ease-out;
+        transition: height 50ms ease-out;
+      }
+
+      .dialog-holder .backdrop {
+        position: absolute;
+        width: 100%;
+        max-width: 100%;
+        max-height: 100%;
+        height: 100%;
+        max-height: 100%;
+        min-height: 100%;
+        top: 0;
+        left: 0;
+        background-color: #fafafa;
+        opacity: .86;
+        z-index: -1; /* on the modal but behind the dialog with z-index-10 */
+      }
+
+      .dialog-holder button {
+        max-width: 167px;
+        width: 100%;
+        min-height: 34px;
+        margin-bottom: 4px;
+        padding: 0.3em 1.5em 0;
+        color: white;
+        font-weight: 700;
+        background-color: #4f85e5;
+        border: none;
+        border-radius: 37px;
+        -webkit-box-shadow: 0 4px 0 0 #2860d8;
+        box-shadow: 0 4px 0 0 #2860d8;
+        color: #fff;
+        letter-spacing: .5px;      
+        text-align: center;
+        text-decoration: none;
+        text-transform: uppercase;
+        cursor: pointer;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+ 
 
     `;
   }
 
+  static get properties() {
+    return {
+      resumeStatusMessage: { type: String },
+      resumeStatusAction: { type: String }
+    };
+  }
+
   constructor() {
     super();
+
+    this.dependencies = { 'listeners': [] }; // {evt.type: function}
+
+    //@TODO checkServiceWorker for the status of the puzzle
+    this.resumeStatusMessage = 'Ready to Start?';
+    this.resumeStatusAction = 'Start';
 
     // Request an update in response to an event
     this.addEventListener('load-completed', async (e) => {
@@ -4779,19 +4895,40 @@ class CrossWordElement extends LitElement {
       if ('serviceWorker' in navigator) { //@todo how will the service-worker script be added?
         navigator.serviceWorker.register('./service-worker.js');
       }
-
     });
+
+    this.addEventListener('focus', () => {
+      this.shadowRoot.querySelector('.dialog-holder').style.display = 'none';
+      this._toggleTrap(false);
+    }, true);
+
+    this.addEventListener('blur', () => {
+      this.shadowRoot.querySelector('.dialog-holder').style.display = 'block';
+      this._toggleTrap(true);
+    }, true);
+
+    if (window.PointerEvent) {
+      // Add Pointer Event Listener
+      // allow click event on cell to bubble upwards to the svg 
+      // clicks will be captured by the svg before the cells underneath it        
+      this.addEventListener('pointerdown', evt => this._sendFocus(evt), false);// first let the event be captured by the children
+    } else {
+      // add Touch event
+      this.addEventListener('touchstart', evt => this._sendFocus(evt), false);
+      this.addEventListener('mousedown', evt => this._sendFocus(evt), false);
+    }
+
   }
 
   render() {
     return html`
-      <main>
+      <main tabindex="0">
 
-      <div class="sticky"></div>
+        <div class="sticky"></div>
 
-        <div class="container">
+          <div class="container">
 
-          <article aria-label="puzzle game">
+            <article aria-label="puzzle game">
               <section aria-label="puzzle grid">
                   <div class="board">
                       <svg viewBox="0 0 501 501" xmlns="http://www.w3.org/2000/svg" role="grid"
@@ -4823,7 +4960,17 @@ class CrossWordElement extends LitElement {
 
         </div>
     </main>
-    `;
+
+    <div class="dialog-holder">
+      <div class="backdrop"></div>
+      <div role="dialog" aria-modal="true" aria-labelledby="formTitle" aria-describedby="dialogDescription">
+        <h3 id="formTitle">${this.resumeStatusMessage}</h3>
+        <div id="dialogDescription" hidden>Fill out the form in order to create a new skill</div>
+        <button value="cancel" @click="${this._sendFocus}">${this.resumeStatusAction}</button>
+      </div>
+    </div>
+
+  `;
   }
 
   connectedCallback() {
@@ -4836,28 +4983,63 @@ class CrossWordElement extends LitElement {
     super.firstUpdated();
 
     // create the view
-    init(this.shadowRoot);
+    // init returns a Promise with all the functions that create the view
+    (async function initialize(component) {
 
-    // get the parentElement of the component
-    console.log(this.parentElement);
-    // const { width, height, x, y } = this.parentElement.getBoundingClientRect();
+      await init(component);
 
-    // use this for mobiles to override posistion
-    const { width, height, x, y } = this.shadowRoot.querySelector(`main`).getBoundingClientRect();
+      // get the parentElement of the component
+      console.log(component.parentElement);
 
-    const cls = width > 850 ? `row` : `column`;
-    this.shadowRoot.querySelector(`main article[aria-label="puzzle game"]`).classList.add(cls);
+      // const { width, height, x, y } = this.parentElement.getBoundingClientRect();
 
-    // Must update!!
-    // Event to trigger update
-    let newMessage = new CustomEvent('load-completed', {
-      detail: { message: 'load completed' }
+      // use this for mobiles to override posistion
+      component.main = component.shadowRoot.querySelector(`main`);
+      const { width, height, x, y } = component.main.getBoundingClientRect();
+
+      const cls = width > 850 ? `row` : `column`;
+      component.shadowRoot.querySelector(`main article[aria-label="puzzle game"]`).classList.add(cls);
+
+      // Must update!!
+      // Event to trigger update
+
+    })(this).then((resolved) => {
+      let newMessage = new CustomEvent('load-completed', {
+        detail: { message: 'load completed' }
+      });
+
+      // Custom DOM events which are fired on internal nodes in a shadow tree 
+      // DO NOT bubble out of the shadow boundary unless the event is created using the composed: true flag
+      // REF: https://developers.google.com/web/fundamentals/web-components/shadowdom#events
+      this.dispatchEvent(newMessage); // the asks for an update
     });
 
-    // Custom DOM events which are fired on internal nodes in a shadow tree 
-    // DO NOT bubble out of the shadow boundary unless the event is created using the composed: true flag
-    // REF: https://developers.google.com/web/fundamentals/web-components/shadowdom#events
-    this.dispatchEvent(newMessage); // the asks for an update
+  }
+
+  //Use connectedCallback to register event handlers for outside your element’s template, 
+  // but don’t forget to remove them in disconnectedCallback!: https://lit-element.polymer-project.org/guide/lifecycle
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this._toggleTrap(true);
+  }
+
+  _sendFocus(evt) {
+    evt.preventDefault();
+    evt.stopPropagation();
+    this.main.focus();
+    this._toggleTrap(false);
+  }
+
+  _toggleTrap(remove) {
+    for (let listener of this.dependencies.listeners) {
+      const [action] = Object.keys(listener);
+      // we are assuming the external eventListeners are on Document!!
+      if (remove) {
+        document.removeEventListener(action, listener[action], true);
+      } else {
+        document.addEventListener(action, listener[action], true);
+      }
+    }
   }
 
 }
