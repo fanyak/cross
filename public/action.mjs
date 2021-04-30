@@ -245,8 +245,8 @@ export class Action {
                 return;
             }
 
-            // doubleclicking to change direction
-            // IFF not synthetic event (eg. clicked from the list of clues) == there exists an endEvent)
+            // IFF Doubleclicking to change direction
+            //  => Not a synthetic event (eg. clicked from the list of clues) => there exists an endEvent)
             if (endEvent && this.selected && el.id == this.selected.id) {
                 this.changeDirection();
                 return;
@@ -391,6 +391,13 @@ export class Action {
         return ([text, hiddenText, content]);
     }
 
+    updateDirectionAndSelected(cell, direction) {
+        this.direction = direction;
+        // prevent loop in the activation event when checking for change direction, since the selected.id remains the same
+        this.selected = null;
+        cell.dispatchEvent(new Event(createUserActivationAction()), { bubbles: true });
+    }
+
     // Function overload: 
     // If it is called from touch cluelist, it passed the selected and the touch event, 
     // if it is called from activateWord, it passed the newTarget
@@ -406,9 +413,7 @@ export class Action {
         // if it doesn't exist in another direction, just return,
         // else, change direction
         if (getCellVariable(cell, changeDirection)) {// this will return if the cell exists in a word on the changeDirection
-            this.direction = changeDirection;
-            this.selected = null; // prevent loop
-            cell.dispatchEvent(new Event(createUserActivationAction()), { bubbles: true });
+            this.updateDirectionAndSelected(cell, changeDirection);
         }
 
     }
@@ -722,20 +727,17 @@ export class Action {
 
     }
 
-
+    // we can update the clueList either by navigating the grid OR by clicking on the clueList 
     updateCluesList(clueNumber, direction, fromCluesList = false) {
 
-        // make the change
-        this.direction = direction; //@TODO change the way we do this
-
+        // if we didn't click on a cell - we clicked on the clue list and might have changed the direction
         if (fromCluesList) {
             const gridCell = this.startOfWordCells[clueNumber - 1].cell;
-            gridCell.dispatchEvent(new Event(createUserActivationAction(), { bubbles: true })); // first send the event to the svg
-             // the rest of this function will be called from the activation event
+            this.updateDirectionAndSelected(gridCell, direction);
+            // the rest of this function will be called from the activation event
             return;
-        } else { 
-            // after activation event
-
+        } else {
+            // after activation event by clicking on the grid
             const addHighlight = this.addHighlight.bind(this);
 
             // remove previously selected style in Clues List
