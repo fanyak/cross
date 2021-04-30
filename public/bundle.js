@@ -1025,6 +1025,7 @@ class Action {
         if (fromCluesList) {
             const gridCell = this.startOfWordCells[clueNumber - 1].cell;
             gridCell.dispatchEvent(new Event(createUserActivationAction(), { bubbles: true })); // first send the event to the svg
+            return; // the rest of this function will be called from the activation event
         } else {
             // if we are not displaying touch
             if (this.shadowRoot.querySelector('.scrolls ol')) {
@@ -1150,9 +1151,21 @@ function init(component) {
 
     const crosswordDimentions = [15, 15]; //@TODO this should be an input
 
-    const rootUrl = 'http://localhost:3000/'; // @TODO change to CDN?
+    // @TODO change to CDN
+    const rootUrl = 'http://localhost:3000/';
+
+    // @TODO the grid id is an input from the web component
     const gridFiles = ['api/grids/7', 'api/words/',].map((req) => `${rootUrl}${req}`);
     const solutionFiles = ['api/solutions/7', 'api/clues/7'].map((req) => `${rootUrl}${req}`);
+    const headers = {
+        method: 'GET',
+        mode: 'cors', // request to a server of another origin if we are at a cdn
+        cache: 'no-store', // *default, no-cache, reload, force-cache, only-if-cached       
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    };
+
     // @TODO how dow we choose size?
     const cellSize = 33;
     const gridSpan = 495;
@@ -1186,7 +1199,7 @@ function init(component) {
     }
 
     //@TODO we don't need the vocab file for displaying a generated crossword
-    return Promise.all(gridFiles.map(file => fetch(file)))
+    return Promise.all(gridFiles.map(file => fetch(file, headers)))
         .then(responses => Promise.all(responses.map(response => response.json())))
         .then(([structure, words]) => new Crossword(structure, words, ...crosswordDimentions))
         .then((crossword) => makeCells(crossword))
@@ -1197,7 +1210,7 @@ function init(component) {
             console.log(err); // @ TODO handle the error
         })
         .then((actionInstance) =>
-            Promise.all(solutionFiles.map(file => fetch(file)))
+            Promise.all(solutionFiles.map(file => fetch(file, headers)))
                 // create clusure for actionInstance
                 .then(responses => Promise.all(responses.map(response => response.json())))
                 .then(data => getClues(data))
