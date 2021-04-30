@@ -352,9 +352,9 @@ class CrossWordElement extends LitElement {
         
       main:not(.touch) .scrolls:not([hidden]) ol li > span:first-child {
         font-weight: bold;
-        width: 20px;
+        width: 24px;
         text-align: right;
-        margin-right: 5px;
+        padding-right: 5px;
         box-sizing: border-box;
       }
         

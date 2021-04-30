@@ -1003,30 +1003,34 @@ class Action {
 
     updateCluesList(clueNumber, direction, fromCluesList = false) {
 
-        const addHighlight = this.addHighlight.bind(this);
-
-        // remove previously selected style in Clues List
-        if (this.selectedClue) {
-            // no new change but maybe the crossed word has changed
-            const [previousDir, previousNum] = this.selectedClue.split('-');
-            if (previousDir == direction && previousNum == clueNumber) {
-                window.requestAnimationFrame(addHighlight);
-                return;
-            }
-            this.shadowRoot.querySelector(`[data-dir='${previousDir}'] [data-li-clue-index ='${previousNum}']`).classList.remove('activeClue');
-        }
-
         // make the change
         this.direction = direction; //@TODO change the way we do this
-        this.selectedClue = `${this.direction}-${clueNumber}`;
-        const active = this.shadowRoot.querySelector(`[data-dir='${this.direction}'] [data-li-clue-index ='${clueNumber}']`);
-        active.classList.add('activeClue');
 
         if (fromCluesList) {
             const gridCell = this.startOfWordCells[clueNumber - 1].cell;
             gridCell.dispatchEvent(new Event(createUserActivationAction(), { bubbles: true })); // first send the event to the svg
-            return; // the rest of this function will be called from the activation event
-        } else {
+             // the rest of this function will be called from the activation event
+            return;
+        } else { 
+            // after activation event
+
+            const addHighlight = this.addHighlight.bind(this);
+
+            // remove previously selected style in Clues List
+            if (this.selectedClue) {
+                // no new change but maybe the crossed word has changed
+                const [previousDir, previousNum] = this.selectedClue.split('-');
+                if (previousDir == direction && previousNum == clueNumber) {
+                    window.requestAnimationFrame(addHighlight);
+                    return;
+                }
+                this.shadowRoot.querySelector(`[data-dir='${previousDir}'] [data-li-clue-index ='${previousNum}']`).classList.remove('activeClue');
+            }
+
+            this.selectedClue = `${this.direction}-${clueNumber}`;
+            const active = this.shadowRoot.querySelector(`[data-dir='${this.direction}'] [data-li-clue-index ='${clueNumber}']`);
+            active.classList.add('activeClue');
+
             // if we are not displaying touch
             if (this.shadowRoot.querySelector('.scrolls ol')) {
                 //active.scrollIntoView({ block: 'nearest', inline: 'start' });
@@ -1036,9 +1040,10 @@ class Action {
                 // active.scrollIntoView({ block: 'nearest', inline: 'start' });
                 active.parentNode.parentNode.style.top = `${-active.offsetTop}px`;
             }
+
+            window.requestAnimationFrame(addHighlight);
         }
 
-        window.requestAnimationFrame(addHighlight);
     }
 
     // animationFrame Queues don't run until all queued are completed
@@ -4568,9 +4573,9 @@ class CrossWordElement extends LitElement {
         
       main:not(.touch) .scrolls:not([hidden]) ol li > span:first-child {
         font-weight: bold;
-        width: 20px;
+        width: 24px;
         text-align: right;
-        margin-right: 5px;
+        padding-right: 5px;
         box-sizing: border-box;
       }
         
