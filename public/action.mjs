@@ -70,7 +70,12 @@ export class Action {
             const content = document.createTextNode(letter);
             text.appendChild(content);
             hiddenText.textContent = letter;
-            this.cellIdToVariableDict[`cell-id-${cellNumber}`][this.direction].letter = letter;
+
+            // add the new letter in both directions the cell belongs to
+            // this.cellIdToVariableDict[`cell-id-${cellNumber}`][this.direction].letter = letter;
+            for (let dir in this.cellIdToVariableDict[`cell-id-${cellNumber}`]) {
+                this.cellIdToVariableDict[`cell-id-${cellNumber}`][dir].letter = letter;
+            }
 
             // activate the next empty cell
             if (this.direction == ACROSS) {
@@ -385,8 +390,9 @@ export class Action {
         const content = [...text.childNodes].find(not(isHiddenNode));
         if (content) {
             text.removeChild(content);
-            this.cellIdToVariableDict[`${cellId}`][DOWN].letter = null;
-            this.cellIdToVariableDict[`${cellId}`][ACROSS].letter = null;
+            for (let dir in this.cellIdToVariableDict[`${cellId}`]) {
+                this.cellIdToVariableDict[`${cellId}`][dir].letter = null;
+            }
         }
         return ([text, hiddenText, content]);
     }

@@ -348,7 +348,12 @@ class Action {
             const content = document.createTextNode(letter);
             text.appendChild(content);
             hiddenText.textContent = letter;
-            this.cellIdToVariableDict[`cell-id-${cellNumber}`][this.direction].letter = letter;
+
+            // add the new letter in both directions the cell belongs to
+            // this.cellIdToVariableDict[`cell-id-${cellNumber}`][this.direction].letter = letter;
+            for (let dir in this.cellIdToVariableDict[`cell-id-${cellNumber}`]) {
+                this.cellIdToVariableDict[`cell-id-${cellNumber}`][dir].letter = letter;
+            }
 
             // activate the next empty cell
             if (this.direction == ACROSS) {
@@ -523,8 +528,8 @@ class Action {
                 return;
             }
 
-            // if Doubleclicking to change direction
-            // IFF not synthetic event (eg. clicked from the list of clues), then there exists an endEvent)
+            // IFF Doubleclicking to change direction
+            //  => Not a synthetic event (eg. clicked from the list of clues) => there exists an endEvent)
             if (endEvent && this.selected && el.id == this.selected.id) {
                 this.changeDirection();
                 return;
@@ -663,15 +668,17 @@ class Action {
         const content = [...text.childNodes].find(not(isHiddenNode));
         if (content) {
             text.removeChild(content);
-            this.cellIdToVariableDict[`${cellId}`][DOWN].letter = null;
-            this.cellIdToVariableDict[`${cellId}`][ACROSS].letter = null;
+            for (let dir in this.cellIdToVariableDict[`${cellId}`]) {
+                this.cellIdToVariableDict[`${cellId}`][dir].letter = null;
+            }
         }
         return ([text, hiddenText, content]);
     }
 
     updateDirectionAndSelected(cell, direction) {
         this.direction = direction;
-        this.selected = null; // prevent loop in the activation event when checking for change direction
+        // prevent loop in the activation event when checking for change direction, since the selected.id remains the same
+        this.selected = null;
         cell.dispatchEvent(new Event(createUserActivationAction()), { bubbles: true });
     }
 
@@ -1004,16 +1011,17 @@ class Action {
 
     }
 
-
+    // we can update the clueList either by navigating the grid OR by clicking on the clueList 
     updateCluesList(clueNumber, direction, fromCluesList = false) {
 
+        // if we didn't click on a cell - we clicked on the clue list and might have changed the direction
         if (fromCluesList) {
             const gridCell = this.startOfWordCells[clueNumber - 1].cell;
             this.updateDirectionAndSelected(gridCell, direction);
             // the rest of this function will be called from the activation event
             return;
         } else {
-            // after activation event
+            // after activation event by clicking on the grid
             const addHighlight = this.addHighlight.bind(this);
 
             // remove previously selected style in Clues List
