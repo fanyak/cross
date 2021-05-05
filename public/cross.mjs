@@ -30,10 +30,10 @@ class Variable {
     }
 
     intersection(other) {
-        let _intersection = new Set();
+        let _intersection;
         for (let elem of other.cells) {
             if (this.cells.find(cell => Variable.isSameCell(elem, cell))) {
-                _intersection.add(elem);
+                _intersection = elem;
             }
         }
         return _intersection;
@@ -158,16 +158,16 @@ class Crossword {
                     continue;
                 }
                 const intersection = v1.intersection(v2);
-                if (!intersection.size) {
+                if (!intersection) {
                     this.overlaps.set([v1, v2], null);
                 } else {
-                    const union = intersection.values().next();
-                    const index1 = v1.cells.findIndex(cell => Variable.isSameCell(cell, union.value));
-                    const index2 = v2.cells.findIndex(cell => Variable.isSameCell(cell, union.value));
+                    const index1 = v1.cells.findIndex(cell => Variable.isSameCell(cell, intersection));
+                    const index2 = v2.cells.findIndex(cell => Variable.isSameCell(cell, intersection));
                     this.overlaps.set([v1, v2], [index1, index2]);
                 }
             }
         }
+        this.overlapKeys = Array.from(this.overlaps.keys());
     }
 
     neighbors(variable) {
@@ -177,9 +177,14 @@ class Crossword {
             if (v.equals(variable)) {
                 continue;
             }
-            if (this.overlaps.has([v, variable])) {
-                _neighbors.add(variable);
+            const f = this.overlapKeys.find(([x, y]) => x.equals(v) && y.equals(variable));
+
+            if (f && this.overlaps.get(f)) {
+                _neighbors.add(v);
             }
+            // if (this.overlaps.has([v, variable])) {
+            //     _neighbors.add(variable);
+            // }
         }
         return _neighbors;
     }

@@ -56,7 +56,8 @@ export class CrosswordCreator {
     solve() {
         this.enforceNodeConsistency();
         this.ac3();
-        return this.backTrack(new Map());
+        // return this.backTrack(new Map());
+        return this.domains;
     }
 
     // Update this.domains such that each variable is node-consistent.
@@ -77,24 +78,28 @@ export class CrosswordCreator {
 
     // return true if a revision was made to this.domains[x]
     //return false if no revision was made
-    revise(x, y) {
+    revise(p) {
+        const [x, y] = p;
         let revision = false;
         // this.crossword.overlaps is a map
-        const overlap = this.crossword.overlaps.get([x, y]);
+        const overlap = this.crossword.overlaps.get(p);
         const updatedXDomain = [];
         if (overlap) {
             for (let wordX of this.domains.get(x)) {
                 for (let wordY of this.domains.get(y)) {
+                    // there is at least 1 possible match
                     if (wordX[overlap[0]] == wordY[overlap[1]]) {
                         updatedXDomain.push(wordX);
+                        break;
                     }
                 }
             }
-            if (updatedXDomain.length < this.domains.get(x)) {
+            if (updatedXDomain.length < this.domains.get(x).length) {
                 this.domains.set(x, updatedXDomain);
                 revision = true;
             }
         }
+
         return revision;
     }
 
@@ -105,30 +110,45 @@ export class CrosswordCreator {
     // Return false if any of the domains end up empty.
     ac3(arcs = null) {
         // this.crossword.overlaps is a Map
-        let queue = arcs || Array.from(this.crossword.overlaps.keys());
+        let queue = arcs || this.crossword.overlapKeys;
         // keep a queue of the arcs
         while (queue.length) {
+            // console.log(queue.length);
             // queues are used as FIFO => use pop to dequeue
-            const [x, y] = queue.pop();
+            const p = queue.unshift();
+            const [x, y] = p;
+            const neighbors = this.crossword.neighbors(x); // Given a variable, return SET of overlapping variables.
+
             // check variable identities to prevent loops
-            if (x.equals(y) || !this.crossword.overlaps.get([x, y])) {
+            if (x.equals(y) || !this.crossword.overlaps.get(p)) {
                 continue;
             }
             // update this.domains.x to  make x arc consistent with y;
-            const revised = this.revise(x, y);
+            const revised = this.revise(p);
             if (revised) {
+                console.log('revised');
+                // console.log(this.domains.get(x));
                 // should return false if a domain becomes empty
                 if (!this.domains.get(x).length) {
+                    console.log('stoped');
                     return false;
                 }
                 // enque the rest of the neighbors of X iff x has been revised, in order to update them also
-                const neighbors = this.crossword.neighbors(x); // Given a variable, return SET of overlapping variables.
-                const enqueu = Array.from(neighbors).filter(neighbor => !neighbor.equals(y)).map((neighbor) => [x, neighbor]);
-                queue = [...queue, ...enqueu]; // enqueue the rest of the neighbors
+                const enqueu = Array.from(neighbors).filter(neighbor => !neighbor.equals(y))
+                    .reduce((acc, neighbor) => {
+                        const f = this.crossword.overlapKeys.find(([a, b]) => a.equals(neighbor) && b.equals(x));
+                        if (f) {
+                            acc.push(f);
+                        }
+                        return acc;
+                    }, []);
+                // queue = [...queue, ...enqueu]; // enqueue the rest of the neighbors
+                queue = queue.concat(enqueu);
             }
-            // if we have reached the end of the queue with no empty domains, return true
-            return true;
         }
+        // if we have reached the end of the queue with no empty domains, return true
+
+        return true;
     }
 
     // Maintain arc-consistency during the search-backtracking process
@@ -141,7 +161,10 @@ export class CrosswordCreator {
         const neighbors = Array.from(this.crossword.neighbors(variable));
         const neighbors_arcs = neighbors.reduce((acc, cur) => {
             if (!assignment.get(cur)) {
-                acc.push([cur, variable]);// make the neighbor arc-consistent with the assigned variable
+                const overlap = this.crossword.overlapKeys.find(([x, y]) => x.equals(cur) && y.equals(variable));
+                if (this.crossword.overlaps.get(overlap)) {
+                    acc.push([cur, variable]);// make the neighbor arc-consistent with the assigned variable
+                }
             } return acc;
         }, []);
 
@@ -180,12 +203,12 @@ export class CrosswordCreator {
     consistent(assignment) {
 
         // check that all the values are distinct
-        const assignedValues = assignment.values();
-        const distinctValues = new Set(Array.from(assignedValues));
-        if (assignment.size != distinctValues.size) {
-            console.log('non distinct values');
-            return false;
-        }
+        // const assignedValues = assignment.values();
+        // const distinctValues = new Set(Array.from(assignedValues));
+        // if (assignment.size != distinctValues.size) {
+        //     console.log('non distinct values');
+        //     return false;
+        // }
 
         // check that each assigned value has the correct length
         for (let [variable, word] of assignment.entries()) {
@@ -195,17 +218,27 @@ export class CrosswordCreator {
             }
         }
 
+        for (let [key, value] of assignment.entries()) {
+            if (!this.crossword.variables.has(key)) {
+                console.log('assignment has diverged');
+                return false;
+            }
+        }
+
         //check that there is arc_consistency
         for (let [variables, overlap] of this.crossword.overlaps.entries()) {
             const [x, y] = variables;
             if (assignment.has(x) && assignment.has(y) && overlap) {
                 const [index1, index2] = overlap;
+                console.log(assignment.get(x)[index1], assignment.get(y)[index2]);
                 if (assignment.get(x)[index1] !== assignment.get(y)[index2]) {
                     console.log('wrong overlap');
                     return false;
                 }
             }
         }
+
+
 
         return true;
     }
@@ -219,7 +252,8 @@ export class CrosswordCreator {
         const neighbors = Array.from(this.crossword.neighbors(variable)).filter((neighbor) => !assignment.has(neighbor));
         const yValues = [];
         for (let neighbor of neighbors) {
-            const overlap = this.crossword.overlaps.get([variable, neighbor]);
+            // const overlap = this.crossword.overlaps.get([variable, neighbor]);
+            const overlap = this.crossword.overlapKeys.find((a) => a[0].equals(variable) && a[1].equals(neighbor));
             const neighborValues = this.domains.get(neighbor);
             yValues.push([overlap, neighborValues]);
         }
