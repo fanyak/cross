@@ -8,7 +8,7 @@ export class CrosswordCreator {
         this.domains = new Map(); // the keys of the 
         // crossword.variables is a Set()
         for (let variable of this.crossword.variables) {
-            this.domains.set(variable, [...this.crossword.words]);
+            this.domains.set(variable, this.crossword.words);
         }
         this.backup = [];
         this.epochs = 0;
@@ -56,8 +56,7 @@ export class CrosswordCreator {
     solve() {
         this.enforceNodeConsistency();
         this.ac3();
-        // return this.backTrack(new Map());
-        return this.domains;
+        return this.backTrack(new Map());
     }
 
     // Update this.domains such that each variable is node-consistent.
@@ -99,7 +98,6 @@ export class CrosswordCreator {
                 revision = true;
             }
         }
-
         return revision;
     }
 
@@ -115,9 +113,8 @@ export class CrosswordCreator {
         while (queue.length) {
             // console.log(queue.length);
             // queues are used as FIFO => use pop to dequeue
-            const p = queue.unshift();
+            const p = queue.shift();
             const [x, y] = p;
-            const neighbors = this.crossword.neighbors(x); // Given a variable, return SET of overlapping variables.
 
             // check variable identities to prevent loops
             if (x.equals(y) || !this.crossword.overlaps.get(p)) {
@@ -127,12 +124,12 @@ export class CrosswordCreator {
             const revised = this.revise(p);
             if (revised) {
                 console.log('revised');
-                // console.log(this.domains.get(x));
                 // should return false if a domain becomes empty
                 if (!this.domains.get(x).length) {
                     console.log('stoped');
                     return false;
                 }
+                const neighbors = this.crossword.neighbors(x); // Given a variable, return SET of overlapping variables.
                 // enque the rest of the neighbors of X iff x has been revised, in order to update them also
                 const enqueu = Array.from(neighbors).filter(neighbor => !neighbor.equals(y))
                     .reduce((acc, neighbor) => {
@@ -147,7 +144,6 @@ export class CrosswordCreator {
             }
         }
         // if we have reached the end of the queue with no empty domains, return true
-
         return true;
     }
 
@@ -161,9 +157,10 @@ export class CrosswordCreator {
         const neighbors = Array.from(this.crossword.neighbors(variable));
         const neighbors_arcs = neighbors.reduce((acc, cur) => {
             if (!assignment.get(cur)) {
-                const overlap = this.crossword.overlapKeys.find(([x, y]) => x.equals(cur) && y.equals(variable));
-                if (this.crossword.overlaps.get(overlap)) {
-                    acc.push([cur, variable]);// make the neighbor arc-consistent with the assigned variable
+                const overlapVars = this.crossword.overlapKeys.find(([x, y]) => x.equals(cur) && y.equals(variable));
+                if (this.crossword.overlaps.get(overlapVars)) {
+                    console.log('overlap found');
+                    acc.push(overlapVars);// make the neighbor arc-consistent with the assigned variable
                 }
             } return acc;
         }, []);
@@ -230,7 +227,6 @@ export class CrosswordCreator {
             const [x, y] = variables;
             if (assignment.has(x) && assignment.has(y) && overlap) {
                 const [index1, index2] = overlap;
-                console.log(assignment.get(x)[index1], assignment.get(y)[index2]);
                 if (assignment.get(x)[index1] !== assignment.get(y)[index2]) {
                     console.log('wrong overlap');
                     return false;

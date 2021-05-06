@@ -87,7 +87,7 @@ function test_solve() {
         .then((response) => response.json())
         .then((response) => {
             const { vocab } = response;
-            console.log(vocab.length);
+            // console.log(vocab.length);
             try {
                 const crossword = new Crossword({ constraints: data.constraint_values }, { vocab: vocab }, ...[15, 15]);
                 // const crossword = new Crossword({ constraints: data.test_create_constraints2 }, { vocab: data.test_create_words2 }, ...data.test_create_size2);
@@ -100,8 +100,8 @@ function test_solve() {
                 // assignment might be null if there is no solution
                 const assignment = create.solve();
                 if (assignment) {
-                    // create.print(assignment);
-                    console.log(assignment);
+                    create.print(assignment);
+                    // console.log(assignment);
                 } else {
                     console.log('no solution');
                 }
