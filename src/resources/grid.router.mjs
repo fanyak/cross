@@ -1,9 +1,11 @@
-const { json } = require('express');
-const express = require('express');
+// const express = require('express');
+import express from 'express';
+import fs from 'fs';
+
 const router = express.Router();
 
 // const fetch = require("node-fetch");
-const fs = require('fs');
+// const fs = require('fs');
 
 // @TODO find grids that fit the discription
 // /api/list
@@ -60,5 +62,5 @@ router
 
   });
 
-
-module.exports = router;
+// module.exports = router;
+export { router };

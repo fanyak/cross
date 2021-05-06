@@ -2,7 +2,6 @@
 import * as data from './test_exports.mjs';
 import fetch from 'node-fetch';
 
-
 // https://nodejs.org/api/esm.html#esm_modules_ecmascript_modules
 import { Crossword, Variable } from '../../public/cross.mjs';
 import { CrosswordCreator } from '../../public/generate.mjs';
@@ -82,6 +81,20 @@ function test_overlaps(crossword) {
 
 }
 
+function test_map_clone(crossword) {
+    const m = new Map();
+    for (let v of crossword.variables) {
+        m.set(v, [1, 24, 4]);
+    }
+    const mClone = new Map(m);
+    for (let v of mClone.keys()) {
+        if (!m.has(v)) {
+            throw Error('deep copy removed reference to variables');
+        }
+    }
+    console.log('shallow copy was created');
+}
+
 function test_solve() {
     fetch('http://localhost:3000/api/words')
         .then((response) => response.json())
@@ -114,6 +127,9 @@ function test_solve() {
 }
 
 
+
+
 //test_variables(crossword);
 // test_overlaps(crossword);
+// test_map_clone(crossword);
 test_solve();

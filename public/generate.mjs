@@ -172,7 +172,7 @@ export class CrosswordCreator {
         // if ac3 != failure, then all the neighbors have at least 1 possible value
         if (this.ac3(neighbors_arcs)) { // returns false if we end-up with empty domains, true otherwise
 
-            for (let v of this.domains.keys()) {
+            for (let v of this.crossword.variables) {
                 // we must check that assignment is consistent after this in backtrack (see Base Case)
                 if (this.domains.get(v).length == 1) { // if we are left with onle 1 possible value
                     assignment.set(v, this.domains.get(v)[0]);
@@ -192,7 +192,13 @@ export class CrosswordCreator {
             if (!assignment.has(variable)) {
                 return false;
             }
+            // TODO remove this test!!!!!!!
+            if (!this.domains.has(variable)) {
+                console.log('DOMAINS HAVE DIVERGED');
+                return false;
+            }
         }
+        console.log(this.domains.size);
         return true;
     }
 
@@ -215,9 +221,10 @@ export class CrosswordCreator {
             }
         }
 
+        // TODO remove this TEST!!!!!!!!!!!!!
         for (let [key, value] of assignment.entries()) {
             if (!this.crossword.variables.has(key)) {
-                console.log('assignment has diverged');
+                console.log('ASSIGNMENT HAS DIVERGED');
                 return false;
             }
         }
@@ -233,9 +240,6 @@ export class CrosswordCreator {
                 }
             }
         }
-
-
-
         return true;
     }
 
@@ -322,7 +326,13 @@ export class CrosswordCreator {
         for (let value of this.orderDomainValues(variable, assignment)) {
 
             // clone the assigment
+            // this should create a shallow copy that preserves the reference to the keys (the variables)
             const assignmentClone = new Map(assignment);
+            for (let v of assignmentClone.keys()) {
+                if (!this.crossword.variables.has(v)) {
+                    throw Error('assignment has diverged');
+                }
+            }
             // try the value of this iteration
             assignmentClone.set(variable, value);
 
@@ -331,6 +341,7 @@ export class CrosswordCreator {
 
                 // INFERENCE - OPTIONAL
                 // keep the state in case the current value doesn't work
+                // this should create a shallow copy that preserves the reference to the keys (the variables)
                 this.backup.push(new Map(this.domains));
                 // maintain arc consistency after we assign x a new value
                 this.inference(variable, assignmentClone);
