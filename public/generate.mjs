@@ -2,7 +2,8 @@ import { Crossword, Variable } from './cross.mjs';
 
 export class CrosswordCreator {
 
-    constructor(crossword) {
+    constructor(crossword, solution) {
+        console.log(solution);
         this.crossword = crossword;
         // The Set object lets you store unique values of any type, whether primitive values or object references such as Variable
         this.domains = new Map(); // the keys of the 
@@ -10,6 +11,35 @@ export class CrosswordCreator {
         for (let variable of this.crossword.variables) {
             this.domains.set(variable, this.crossword.words);
         }
+
+        // ADD the partially completed solution 
+        if (solution) {
+            const partial = new Map(solution);
+            const solutionKeys = Array.from(partial.keys());
+            // crossword.variables is a Set()
+            for (let variable of this.crossword.variables) {
+                // check existing solution
+                //@ TODO this doesn't cover the case where we have half-completed words in a variable
+                const key = solutionKeys.find((f) => variable.equals(f));
+                let word = '';
+                if (key) {
+                    const value = partial.get(key);
+                    for (let i = 0; i < value.length; i++) {
+                        const letter = value[i][0];
+                        if (letter && letter != variable.cells[i][0]) {
+                            word += letter;
+                        }
+                    }
+                } console.log('word', word);
+                if (word && (word.length == variable.length)) {
+                    this.domains.set(variable, [word]);
+                } else {
+                    this.domains.set(variable, this.crossword.words);
+                }
+            }
+        }
+        // end of adding the solution
+
         this.backup = [];
         this.epochs = 0;
     }
@@ -123,7 +153,7 @@ export class CrosswordCreator {
             // update this.domains.x to  make x arc consistent with y;
             const revised = this.revise(p);
             if (revised) {
-                console.log('revised');
+                // console.log('revised');
                 // should return false if a domain becomes empty
                 if (!this.domains.get(x).length) {
                     console.log('stoped');

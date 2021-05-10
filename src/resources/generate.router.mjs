@@ -20,16 +20,24 @@ router
     .route('/')
     .post((req, res) => {
         // const load = req.params.load;
-        console.log(req.body);
+        const load = req.body;
         fs.readFile('src/resources/vocab.txt', 'utf8', (error, data) => {
             if (error) {
                 res.status(404).send(JSON.stringify({ error: [] }));
             } else {
                 const vocab = data.split('\r\n');
-                // const { constraints, width, height, solution } = JSON.parse(load);
-                // const crossword = new Crossword({ constraints }, { vocab }, ...[width, height]);
-
-                res.status(200).send(JSON.stringify({ width: 15 }));
+                const { constraints, width, height, solution } = load;
+                const crossword = new Crossword({ 'constraints': JSON.parse(constraints) }, { 'vocab': vocab }, ...[width, height]);
+                const create = new CrosswordCreator(crossword, JSON.parse(solution));
+                // assignment might be null if there is no solution
+                const assignment = create.solve();
+                if (assignment) {
+                    create.print(assignment);
+                    res.status(200).send(JSON.stringify({ 'solution': Array.from(assignment) }));
+                } else {
+                    console.log('no solution');
+                    res.status(200).send(JSON.stringify({ 'solution': null }));
+                }
             }
         });
 
