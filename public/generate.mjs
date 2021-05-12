@@ -1,9 +1,9 @@
-import { Crossword, Variable } from './cross.mjs';
+// import { Crossword, Variable } from './cross.mjs';
 
 export class CrosswordCreator {
 
     constructor(crossword, solution) {
-        console.log(solution);
+        // console.log(solution);
         this.crossword = crossword;
         // The Set object lets you store unique values of any type, whether primitive values or object references such as Variable
         this.domains = new Map(); // the keys of the 
@@ -13,31 +13,29 @@ export class CrosswordCreator {
         }
 
         // ADD the partially completed solution 
-        if (solution) {
-            const partial = new Map(solution);
-            const solutionKeys = Array.from(partial.keys());
-            // crossword.variables is a Set()
-            for (let variable of this.crossword.variables) {
-                // check existing solution
-                //@ TODO this doesn't cover the case where we have half-completed words in a variable
-                const key = solutionKeys.find((f) => variable.equals(f));
-                let word = '';
-                if (key) {
-                    const value = partial.get(key);
-                    for (let i = 0; i < value.length; i++) {
-                        const letter = value[i][0];
-                        if (letter && letter != variable.cells[i][0]) {
-                            word += letter;
-                        }
-                    }
-                } console.log('word', word);
-                if (word && (word.length == variable.length)) {
-                    this.domains.set(variable, [word]);
-                } else {
-                    this.domains.set(variable, this.crossword.words);
-                }
-            }
-        }
+        // if (solution) {
+        //     const partial = new Map(solution);
+        //     const solutionKeys = Array.from(partial.keys());
+        //     // crossword.variables is a Set()
+        //     for (let variable of this.crossword.variables) {
+        //         // check existing solution
+        //         //@ TODO this doesn't cover the case where we have half-completed words in a variable
+        //         const key = solutionKeys.find((f) => variable.equals(f));
+        //         let word = '';
+        //         if (key) {
+        //             const value = partial.get(key);
+        //             for (let i = 0; i < value.length; i++) {
+        //                 const letter = value[i][0];
+        //                 if (letter && letter != variable.cells[i][0]) {
+        //                     word += letter;
+        //                 }
+        //             }
+        //         } console.log('word', word);
+        //         if (word && (word.length == variable.length)) {
+        //             this.domains.set(variable, [word]);
+        //         }
+        //     }
+        // }
         // end of adding the solution
 
         this.backup = [];
@@ -142,7 +140,7 @@ export class CrosswordCreator {
         // keep a queue of the arcs
         while (queue.length) {
             // console.log(queue.length);
-            // queues are used as FIFO => use pop to dequeue
+            // queues are used as FIFO => use shift to dequeue
             const p = queue.shift();
             const [x, y] = p;
 
@@ -153,7 +151,7 @@ export class CrosswordCreator {
             // update this.domains.x to  make x arc consistent with y;
             const revised = this.revise(p);
             if (revised) {
-                // console.log('revised');
+                console.log('revised');
                 // should return false if a domain becomes empty
                 if (!this.domains.get(x).length) {
                     console.log('stoped');
@@ -162,13 +160,14 @@ export class CrosswordCreator {
                 const neighbors = this.crossword.neighbors(x); // Given a variable, return SET of overlapping variables.
                 // enque the rest of the neighbors of X iff x has been revised, in order to update them also
                 const enqueu = Array.from(neighbors).filter(neighbor => !neighbor.equals(y))
-                    .reduce((acc, neighbor) => {
+                    .map(neighbor => {
                         const f = this.crossword.overlapKeys.find(([a, b]) => a.equals(neighbor) && b.equals(x));
-                        if (f) {
-                            acc.push(f);
+                        // @TODO Remove check
+                        if (!this.crossword.overlaps.has(f)) {
+                            throw Error(f);
                         }
-                        return acc;
-                    }, []);
+                        return f;
+                    });
                 // queue = [...queue, ...enqueu]; // enqueue the rest of the neighbors
                 queue = queue.concat(enqueu);
             }
@@ -186,17 +185,13 @@ export class CrosswordCreator {
         // then make this neighbor be consistent with the variable has been assigned a value
         const neighbors = Array.from(this.crossword.neighbors(variable));
         const neighbors_arcs = neighbors.reduce((acc, cur) => {
-            if (!assignment.get(cur)) {
+            if (!assignment.has(cur)) {
                 const overlapVars = this.crossword.overlapKeys.find(([x, y]) => x.equals(cur) && y.equals(variable));
-                if (this.crossword.overlaps.get(overlapVars)) {
-                    console.log('overlap found');
-                    acc.push(overlapVars);// make the neighbor arc-consistent with the assigned variable
-                }
-            } return acc;
+                console.log('overlap found');
+                acc.push(overlapVars);// make the neighbor arc-consistent with the assigned variable
+            }
+            return acc;
         }, []);
-
-        // in order to make the neighbors consistent with the value that the variable as been assigned
-        this.domains.set(variable, [assignment.get(variable)]);
 
         // make all neighbors of variable be arc-consistent with variable
         // if ac3 != failure, then all the neighbors have at least 1 possible value
@@ -217,16 +212,21 @@ export class CrosswordCreator {
 
     // Return true if assignment is complete = all the crossword variables have been asssigned a value
     complete(assignment) {
+
         // crossword.variables is a Set()
         for (let variable of this.crossword.variables) {
-            if (!assignment.has(variable)) {
-                return false;
-            }
+
             // TODO remove this test!!!!!!!
             if (!this.domains.has(variable)) {
                 console.log('DOMAINS HAVE DIVERGED');
+                throw Error(variable);
+            }
+
+            if (!assignment.has(variable)) {
+                console.log(assignment.size);
                 return false;
             }
+
         }
         console.log(this.domains.size);
         return true;
@@ -236,12 +236,12 @@ export class CrosswordCreator {
     consistent(assignment) {
 
         // check that all the values are distinct
-        // const assignedValues = assignment.values();
-        // const distinctValues = new Set(Array.from(assignedValues));
-        // if (assignment.size != distinctValues.size) {
-        //     console.log('non distinct values');
-        //     return false;
-        // }
+        const assignedValues = assignment.values();
+        const distinctValues = new Set(Array.from(assignedValues));
+        if (assignment.size != distinctValues.size) {
+            console.log('non distinct values');
+            return false;
+        }
 
         // check that each assigned value has the correct length
         for (let [variable, word] of assignment.entries()) {
@@ -283,8 +283,9 @@ export class CrosswordCreator {
         const yValues = [];
         for (let neighbor of neighbors) {
             // const overlap = this.crossword.overlaps.get([variable, neighbor]);
-            const overlap = this.crossword.overlapKeys.find((a) => a[0].equals(variable) && a[1].equals(neighbor));
+            const overlapkey = this.crossword.overlapKeys.find((a) => a[0].equals(variable) && a[1].equals(neighbor));
             const neighborValues = this.domains.get(neighbor);
+            const overlap = this.crossword.overlaps.get(overlapkey);
             yValues.push([overlap, neighborValues]);
         }
         const ruleOutByValue = {};
@@ -352,17 +353,23 @@ export class CrosswordCreator {
 
         // use the Heuristics
         const variable = this.selectUnassignedVariable(assignment);
+        if (assignment.has(variable)) {
+            throw Error('already assigned');
+        }
 
         for (let value of this.orderDomainValues(variable, assignment)) {
 
             // clone the assigment
             // this should create a shallow copy that preserves the reference to the keys (the variables)
             const assignmentClone = new Map(assignment);
+
+            // test
             for (let v of assignmentClone.keys()) {
                 if (!this.crossword.variables.has(v)) {
                     throw Error('assignment has diverged');
                 }
             }
+
             // try the value of this iteration
             assignmentClone.set(variable, value);
 
@@ -372,11 +379,23 @@ export class CrosswordCreator {
                 // INFERENCE - OPTIONAL
                 // keep the state in case the current value doesn't work
                 // this should create a shallow copy that preserves the reference to the keys (the variables)
-                this.backup.push(new Map(this.domains));
-                // maintain arc consistency after we assign x a new value
-                this.inference(variable, assignmentClone);
+                const a = new Map();
+                for (let [key, value] of this.domains) {
+                    a.set(key, [...value]);
+                }
+                // this.backup.push(new Map(this.domains));
+                this.backup.push(a);
 
-                // if inference != failure, then the domains and / or assignment have been updated                    
+                // maintain arc consistency after we assign x a new value
+                // in order to make the neighbors consistent with the value that the variable as been assigned
+                this.domains.set(variable, [value]);
+                const inf = this.inference(variable, assignmentClone);
+                if (!inf) {
+                    // inference = failure, restore the wrongly updated domains
+                    this.domains = this.backup.pop();
+                    continue;
+                }
+                //if inference != failure, then the domains and / or assignment have been updated                    
 
                 // Recursion
                 // check if we can go further with the value of this iteration
@@ -388,8 +407,7 @@ export class CrosswordCreator {
                     return result;
                 }
 
-                // inference = failure, restore the wrongly updated domains
-                this.domains = this.backup.pop();
+
             }
         }
 

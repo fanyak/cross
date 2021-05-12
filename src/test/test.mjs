@@ -26,11 +26,13 @@ function test_variables(crossword) {
     }
 }
 
-function test_overlaps(crossword) {
-    const overlaps = crossword.overlaps;
-    if (overlaps.size != data.overlaps_size) {
-        throw (Error('mis-matched overlaps'));
-    }
+function test_overlaps() {
+    const crossword = new Crossword({ constraints: data.constraint_values }, { vocab: [] }, 15, 15);
+
+    //const overlaps = crossword.overlaps;
+    // if (overlaps.size != data.overlaps_size) {
+    //     throw (Error('mis-matched overlaps'));
+    // }
 
     // data.sample_overlaps.forEach((overlap, variables) => {
     //     const v0 = {};
@@ -60,10 +62,13 @@ function test_overlaps(crossword) {
     // const test = variables.find(v => v.equals(new Variable(0, 0, 'across', 8)));
     // const expected = new Set([new Variable(0, 0, 'down', 3), new Variable(0, 1, 'down', 3), new Variable(0, 2, 'down', 3), new Variable(0, 3, 'down', 9), new Variable(0, 4, 'down', 4),
     // new Variable(0, 5, 'down', 4), new Variable(0, 6, 'down', 4), new Variable(0, 7, 'down', 4)]);
-    const test = variables.find(v => v.equals(new Variable(9, 4, 'across', 11)));
-    const expected = new Set([new Variable(5, 7, 'down', 5), new Variable(6, 11, 'down', 9), new Variable(7, 10, 'down', 3), new Variable(7, 8, 'down', 3), new Variable(7, 9, 'down', 3),
-    new Variable(8, 12, 'down', 3), new Variable(8, 13, 'down', 3), new Variable(8, 14, 'down', 3), new Variable(9, 4, 'down', 6), new Variable(9, 5, 'down', 5), new Variable(9, 6, 'down', 3)]);
+    // const test = variables.find(v => v.equals(new Variable(9, 4, 'across', 11)));
+    // const expected = new Set([new Variable(5, 7, 'down', 5), new Variable(6, 11, 'down', 9), new Variable(7, 10, 'down', 3), new Variable(7, 8, 'down', 3), new Variable(7, 9, 'down', 3),
+    // new Variable(8, 12, 'down', 3), new Variable(8, 13, 'down', 3), new Variable(8, 14, 'down', 3), new Variable(9, 4, 'down', 6), new Variable(9, 5, 'down', 5), new Variable(9, 6, 'down', 3)]);
 
+    const test = variables.find(v => v.equals(new Variable(9, 6, 'down', 6)));
+    const expected = new Set([new Variable(10, 2, 'across', 5), new Variable(11, 4, 'across', 11), new Variable(12, 6, 'across', 9), new Variable(13, 6, 'across', 4),
+    new Variable(14, 6, 'across', 4), new Variable(9, 0, 'across', 12)]);
     const found = crossword.neighbors(test);
     let res = 0;
     for (let e of expected) {
@@ -100,12 +105,13 @@ function test_solve() {
         .then((response) => response.json())
         .then((response) => {
             const { vocab } = response;
-            // console.log(vocab.length);
+            // console.log(vocab.length, data.constraint_values);
+
             try {
-                const crossword = new Crossword({ constraints: data.constraint_values }, { vocab: vocab }, ...[15, 15]);
+                const crossword = new Crossword({ constraints: data.constraint_values }, { vocab: vocab }, 15, 15);
                 // const crossword = new Crossword({ constraints: data.test_create_constraints2 }, { vocab: data.test_create_words2 }, ...data.test_create_size2);
                 // const crossword = new Crossword({ constraints: data.test_create_constraints1 }, { vocab: data.test_create_words1 }, ...data.test_create_size1);
-                //const crossword = new Crossword({ constraints: data.test_create_constraints0 }, { vocab: data.test_create_words0 }, ...data.test_create_size0);
+                //const crossword = new Crossword({ constraints: data.test_create_constraints0 }, { vocab: data.test_create_words0 }, ...data.test_create_size0);                
 
                 console.log('crossword created');
 
@@ -130,6 +136,6 @@ function test_solve() {
 
 
 //test_variables(crossword);
-// test_overlaps(crossword);
+// test_overlaps();
 // test_map_clone(crossword);
 test_solve();
