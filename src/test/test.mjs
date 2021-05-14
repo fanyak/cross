@@ -110,7 +110,7 @@ function test_solve() {
             try {
                 const crossword = new Crossword({ constraints: data.constraint_values }, { vocab: vocab }, 15, 15);
                 // const crossword = new Crossword({ constraints: data.test_create_constraints2 }, { vocab: data.test_create_words2 }, ...data.test_create_size2);
-                // const crossword = new Crossword({ constraints: data.test_create_constraints1 }, { vocab: data.test_create_words1 }, ...data.test_create_size1);
+                // crossword = new Crossword({ constraints: data.test_create_constraints1 }, { vocab: data.test_create_words1 }, ...data.test_create_size1);
                 //const crossword = new Crossword({ constraints: data.test_create_constraints0 }, { vocab: data.test_create_words0 }, ...data.test_create_size0);                
 
                 console.log('crossword created');

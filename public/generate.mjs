@@ -1,4 +1,4 @@
-// import { Crossword, Variable } from './cross.mjs';
+import { Crossword, Variable } from './cross.mjs';
 
 export class CrosswordCreator {
 
@@ -151,10 +151,10 @@ export class CrosswordCreator {
             // update this.domains.x to  make x arc consistent with y;
             const revised = this.revise(p);
             if (revised) {
-                console.log('revised');
+                // console.log('revised');
                 // should return false if a domain becomes empty
                 if (!this.domains.get(x).length) {
-                    console.log('stoped');
+                    // console.log('stoped');
                     return false;
                 }
                 const neighbors = this.crossword.neighbors(x); // Given a variable, return SET of overlapping variables.
@@ -187,7 +187,7 @@ export class CrosswordCreator {
         const neighbors_arcs = neighbors.reduce((acc, cur) => {
             if (!assignment.has(cur)) {
                 const overlapVars = this.crossword.overlapKeys.find(([x, y]) => x.equals(cur) && y.equals(variable));
-                console.log('overlap found');
+                // console.log('overlap found');
                 acc.push(overlapVars);// make the neighbor arc-consistent with the assigned variable
             }
             return acc;
@@ -228,7 +228,6 @@ export class CrosswordCreator {
             }
 
         }
-        console.log(this.domains.size);
         return true;
     }
 
@@ -239,14 +238,14 @@ export class CrosswordCreator {
         const assignedValues = assignment.values();
         const distinctValues = new Set(Array.from(assignedValues));
         if (assignment.size != distinctValues.size) {
-            console.log('non distinct values');
+            //console.log('non distinct values');
             return false;
         }
 
         // check that each assigned value has the correct length
         for (let [variable, word] of assignment.entries()) {
             if (variable.length != word.length) {
-                console.log('wrong length');
+                // console.log('wrong length');
                 return false;
             }
         }
@@ -255,7 +254,7 @@ export class CrosswordCreator {
         for (let [key, value] of assignment.entries()) {
             if (!this.crossword.variables.has(key)) {
                 console.log('ASSIGNMENT HAS DIVERGED');
-                return false;
+                throw Error('diverged');
             }
         }
 
@@ -265,7 +264,7 @@ export class CrosswordCreator {
             if (assignment.has(x) && assignment.has(y) && overlap) {
                 const [index1, index2] = overlap;
                 if (assignment.get(x)[index1] !== assignment.get(y)[index2]) {
-                    console.log('wrong overlap');
+                    // console.log('wrong overlap');
                     return false;
                 }
             }
@@ -292,11 +291,9 @@ export class CrosswordCreator {
         for (let wordX of this.domains.get(variable)) {
             ruleOutByValue[wordX] = 0;
             for (let [overlap, yWords] of yValues) {
-                if (overlap) {
-                    const [index1, index2] = overlap;
-                    const reject = yWords.filter((wordY) => wordY[index2] !== wordX[index1]);
-                    ruleOutByValue[wordX] += reject.length;
-                }
+                const [index1, index2] = overlap;
+                const reject = yWords.filter((wordY) => wordY[index2] !== wordX[index1]);
+                ruleOutByValue[wordX] += reject.length;
             }
         }
         // return a new list
@@ -306,23 +303,22 @@ export class CrosswordCreator {
     // choose the variable that has the least amount of remaining values in its domain to assign next
     // if there is a tie choose the variable with the highest degree. If there is a tie any of the tied variables is acceptable
     selectUnassignedVariable(assignment) {
+        const domainCounts = new Map();
         const unassignedVariables = Array.from(this.crossword.variables).filter((variable) => !assignment.has(variable));
-        const domainCounts = unassignedVariables.reduce((acc, cur) => {
-            acc[cur] = this.domains.get(cur).length;
-            return acc;
-        }, {});
-
+        for (let v of unassignedVariables) {
+            domainCounts.set(v, this.domains.get(v).length);
+        }
         // mutate the array
-        unassignedVariables.sort((a, b) => domainCounts[a] - domainCounts[b]);
+        unassignedVariables.sort((a, b) => domainCounts.get(a) - domainCounts.get(b));
 
         // unassignedVariables is now sorted in ascending order of domain counts.
-        const minCount = domainCounts[unassignedVariables[0]];
+        const minCount = domainCounts.get(unassignedVariables[0]);
         let maxDegree = -1;
         let selectedVariable;
 
         // resolve domainCount ties by getting the variable with the maximum degree
         for (let v of unassignedVariables) {
-            if (domainCounts[v] == minCount) {
+            if (domainCounts.get(v) == minCount) {
                 const degree = this.crossword.neighbors(v).size;
                 if (degree > maxDegree) {
                     maxDegree = degree;
@@ -353,6 +349,7 @@ export class CrosswordCreator {
 
         // use the Heuristics
         const variable = this.selectUnassignedVariable(assignment);
+
         if (assignment.has(variable)) {
             throw Error('already assigned');
         }
@@ -375,44 +372,34 @@ export class CrosswordCreator {
 
             // check for dublicates and conflicts
             if (this.consistent(assignmentClone)) {
-
+                console.log('backtracking');
                 // INFERENCE - OPTIONAL
                 // keep the state in case the current value doesn't work
                 // this should create a shallow copy that preserves the reference to the keys (the variables)
                 const a = new Map();
-                for (let [key, value] of this.domains) {
+                for (let [key, value] of this.domains.entries()) {
                     a.set(key, [...value]);
                 }
                 // this.backup.push(new Map(this.domains));
                 this.backup.push(a);
-
                 // maintain arc consistency after we assign x a new value
                 // in order to make the neighbors consistent with the value that the variable as been assigned
                 this.domains.set(variable, [value]);
                 const inf = this.inference(variable, assignmentClone);
-                if (!inf) {
-                    // inference = failure, restore the wrongly updated domains
-                    this.domains = this.backup.pop();
-                    continue;
-                }
                 //if inference != failure, then the domains and / or assignment have been updated                    
 
                 // Recursion
                 // check if we can go further with the value of this iteration
                 const result = this.backTrack(assignmentClone);
-
                 // check if at the end of the recursion the Base Case returns the assignment
                 //  i.e: if result is not null = the assignment is complete
                 if (result) {
                     return result;
                 }
-
-
+                this.domains = this.backup.pop();
             }
         }
-
         return null;
-
     }
 
 
