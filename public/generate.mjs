@@ -12,30 +12,30 @@ export class CrosswordCreator {
             this.domains.set(variable, this.crossword.words);
         }
 
-        // ADD the partially completed solution 
-        // if (solution) {
-        //     const partial = new Map(solution);
-        //     const solutionKeys = Array.from(partial.keys());
-        //     // crossword.variables is a Set()
-        //     for (let variable of this.crossword.variables) {
-        //         // check existing solution
-        //         //@ TODO this doesn't cover the case where we have half-completed words in a variable
-        //         const key = solutionKeys.find((f) => variable.equals(f));
-        //         let word = '';
-        //         if (key) {
-        //             const value = partial.get(key);
-        //             for (let i = 0; i < value.length; i++) {
-        //                 const letter = value[i][0];
-        //                 if (letter && letter != variable.cells[i][0]) {
-        //                     word += letter;
-        //                 }
-        //             }
-        //         } console.log('word', word);
-        //         if (word && (word.length == variable.length)) {
-        //             this.domains.set(variable, [word]);
-        //         }
-        //     }
-        // }
+        // ADD the partially completed solution
+        if (solution) {
+            const partial = new Map(solution);
+            const solutionKeys = Array.from(partial.keys());
+            // crossword.variables is a Set()
+            for (let variable of this.crossword.variables) {
+                // check existing solution
+                //@ TODO this doesn't cover the case where we have half-completed words in a variable
+                const key = solutionKeys.find((f) => variable.equals(f));
+                let word = '';
+                if (key) {
+                    const value = partial.get(key);
+                    for (let i = 0; i < value.length; i++) {
+                        const letter = value[i][0];
+                        if (letter && letter != variable.cells[i][0]) {
+                            word += letter;
+                        }
+                    }
+                } console.log('word', word);
+                if (word && (word.length == variable.length)) {
+                    this.domains.set(variable, [word]);
+                }
+            }
+        }
         // end of adding the solution
 
         this.backup = [];
@@ -87,6 +87,7 @@ export class CrosswordCreator {
         return this.backTrack(new Map());
     }
 
+
     // Update this.domains such that each variable is node-consistent.
     // Remove any values that are incosistent with a variable's unary constraints = constraints imposed by the variable itself.
     // In this case, a variable's unary constraint is the length of the word (cannot be different than the length of the variable)
@@ -136,7 +137,7 @@ export class CrosswordCreator {
     // Return false if any of the domains end up empty.
     ac3(arcs = null) {
         // this.crossword.overlaps is a Map
-        let queue = arcs || this.crossword.overlapKeys;
+        let queue = arcs || Array.from(this.crossword.overlaps.keys());
         // keep a queue of the arcs
         while (queue.length) {
             // console.log(queue.length);
@@ -161,7 +162,7 @@ export class CrosswordCreator {
                 // enque the rest of the neighbors of X iff x has been revised, in order to update them also
                 const enqueu = Array.from(neighbors).filter(neighbor => !neighbor.equals(y))
                     .map(neighbor => {
-                        const f = this.crossword.overlapKeys.find(([a, b]) => a.equals(neighbor) && b.equals(x));
+                        const f = Array.from(this.crossword.overlaps.keys()).find(([a, b]) => a.equals(neighbor) && b.equals(x));
                         // @TODO Remove check
                         if (!this.crossword.overlaps.has(f)) {
                             throw Error(f);
@@ -186,7 +187,7 @@ export class CrosswordCreator {
         const neighbors = Array.from(this.crossword.neighbors(variable));
         const neighbors_arcs = neighbors.reduce((acc, cur) => {
             if (!assignment.has(cur)) {
-                const overlapVars = this.crossword.overlapKeys.find(([x, y]) => x.equals(cur) && y.equals(variable));
+                const overlapVars = Array.from(this.crossword.overlaps.keys()).find(([x, y]) => x.equals(cur) && y.equals(variable));
                 // console.log('overlap found');
                 acc.push(overlapVars);// make the neighbor arc-consistent with the assigned variable
             }
@@ -282,7 +283,7 @@ export class CrosswordCreator {
         const yValues = [];
         for (let neighbor of neighbors) {
             // const overlap = this.crossword.overlaps.get([variable, neighbor]);
-            const overlapkey = this.crossword.overlapKeys.find((a) => a[0].equals(variable) && a[1].equals(neighbor));
+            const overlapkey = Array.from(this.crossword.overlaps.keys()).find((a) => a[0].equals(variable) && a[1].equals(neighbor));
             const neighborValues = this.domains.get(neighbor);
             const overlap = this.crossword.overlaps.get(overlapkey);
             yValues.push([overlap, neighborValues]);
@@ -297,7 +298,7 @@ export class CrosswordCreator {
             }
         }
         // return a new list
-        return [...this.domains.get(variable)].sort((a, b) => ruleOutByValue[a] - ruleOutByValue[b]);
+        return this.domains.get(variable).sort((a, b) => ruleOutByValue[a] - ruleOutByValue[b]);
     }
 
     // choose the variable that has the least amount of remaining values in its domain to assign next

@@ -1,5 +1,5 @@
 import { init } from './component.mjs';
-import { LitElement, css, html, supportsAdoptingStyleSheets } from 'lit-element';
+import { LitElement, css, html } from 'lit-element';
 
 let flexDirectionRow = css`row`;
 let flexDirectionColumn = css`column`;

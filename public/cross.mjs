@@ -167,7 +167,6 @@ class Crossword {
                 }
             }
         }
-        this.overlapKeys = Array.from(this.overlaps.keys());
     }
 
     neighbors(variable) {
@@ -177,7 +176,7 @@ class Crossword {
             if (v.equals(variable)) {
                 continue;
             }
-            const f = this.overlapKeys.find(([x, y]) => x.equals(v) && y.equals(variable));
+            const f = Array.from(this.overlaps.keys()).find(([x, y]) => x.equals(v) && y.equals(variable));
 
             if (f && this.overlaps.get(f)) {
                 _neighbors.add(v);
