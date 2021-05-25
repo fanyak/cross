@@ -2,12 +2,16 @@ import { Crossword, Variable } from './cross.mjs';
 
 export class CrosswordCreator {
 
-    constructor(crossword, solution) {
+    constructor(crossword, solution, exclude) {
         // console.log(solution);
         this.crossword = crossword;
         // The Set object lets you store unique values of any type, whether primitive values or object references such as Variable
         this.domains = new Map(); // the keys of the 
         // crossword.variables is a Set()
+
+        if (exclude) {
+            this.crossword.words = this.crossword.words.filter(word => !exclude.includes(word));
+        }
         for (let variable of this.crossword.variables) {
             this.domains.set(variable, this.crossword.words);
         }

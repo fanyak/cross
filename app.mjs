@@ -46,6 +46,8 @@ const fileServer = express.static(WEB_PATH, { // OPTIONS OBJECT
 
 
 // ALLOW LOADING FROM MODULES
+// First set the path,
+// then use middleware see @L68
 const ModuleServer = express.static(MODULE_PATH, { // OPTIONS OBJECT 
     setHeaders(res, path) {
         const parts = path.split('.');

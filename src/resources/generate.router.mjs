@@ -26,9 +26,9 @@ router
                 res.status(404).send(JSON.stringify({ error: [] }));
             } else {
                 const vocab = data.split('\r\n');
-                const { constraints, width, height, solution } = load;
+                const { constraints, width, height, solution, exclude } = load;
                 const crossword = new Crossword({ 'constraints': JSON.parse(constraints) }, { 'vocab': vocab }, ...[width, height]);
-                const create = new CrosswordCreator(crossword, JSON.parse(solution));
+                const create = new CrosswordCreator(crossword, JSON.parse(solution), JSON.parse(exclude));
                 // assignment might be null if there is no solution
                 const assignment = create.solve();
                 if (assignment) {
